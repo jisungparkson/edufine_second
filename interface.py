@@ -1,63 +1,165 @@
-# interface.py (스레드 기반 버전)
-import tkinter as tk
+# interface.py (CustomTkinter를 사용한 새 버전)
+
+import customtkinter
 import threading
+import datetime
+from tkinter import messagebox
 from btn_commands import (
     open_eduptl, do_login_only, neis_attendace, neis_haengteuk,
     neis_hakjjong, neis_class_hakjjong
 )
 
-def run_in_thread(func):
-    """함수를 별도 스레드에서 실행하여 GUI 응답성을 유지합니다"""
-    thread = threading.Thread(target=func, daemon=True)
-    thread.start()
+# --- UI 기본 설정 ---
+customtkinter.set_appearance_mode("System")  # PC의 다크/라이트 모드를 따라감
+customtkinter.set_default_color_theme("blue")  # 파란색 테마
 
-# ➊ 기본 스타일 정의
-bgcolor = '#005887'
-font_color = '#F5F5F5'
-font = lambda size, bold: ('맑은 고딕', size, 'bold') if bold else ('맑은 고딕', size)
 
-# ➋ 화면 설정
-window = tk.Tk()
-window.title("업무포털 자동화 (Playwright) v2")
-window.geometry('500x600')
-window.configure(bg=bgcolor)
+class App(customtkinter.CTk):
+    def __init__(self):
+        super().__init__()
 
-# ➌ 제목, 설명, 바닥글
-title = tk.Label(window, text="업무포털 자동화", font=font(25, True), bg=bgcolor, fg=font_color, wraplength=500)
-title.place(relx=0.5, rely=0.08, anchor=tk.CENTER)
+        # --- 윈도우(창) 설정 ---
+        self.title("업무포털 자동화 프로그램 v3.0")
+        self.geometry("900x600")
+        
+        # --- 그리드 레이아웃 설정 ---
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=2)
+        self.grid_rowconfigure(0, weight=1)
 
-subtitle = tk.Label(window, text="업무 자동화를 위한 다양한 기능을 선택하세요", font=font(12, False), bg=bgcolor, fg=font_color)
-subtitle.place(relx=0.5, rely=0.17, anchor=tk.CENTER)
+        # --- 왼쪽 프레임 (입력 및 버튼) ---
+        self.left_frame = customtkinter.CTkFrame(self, corner_radius=10)
+        self.left_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-footer = tk.Label(window, text="© 2024 Szzng. All rights reserved.", font=font(10, False), bg=bgcolor, fg=font_color)
-footer.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
+        # UI 제목
+        self.label_title = customtkinter.CTkLabel(
+            self.left_frame, 
+            text="업무포털 자동화", 
+            font=customtkinter.CTkFont(size=24, weight="bold")
+        )
+        self.label_title.pack(pady=20, padx=10)
+        
+        # 부제목
+        self.label_subtitle = customtkinter.CTkLabel(
+            self.left_frame,
+            text="업무 자동화를 위한 다양한 기능을 선택하세요",
+            font=customtkinter.CTkFont(size=12)
+        )
+        self.label_subtitle.pack(pady=(0, 20), padx=10)
 
-# ➏ 버튼
-btn_styles = {
-    'font': font(12, True),
-    'width': 35,
-    'height': 2,
-    'bd': 3,
-    'bg': 'white',
-    'fg': bgcolor,
-    'cursor': 'hand2',
-    'relief': 'raised'
-}
+        # 자동화 작업 버튼들
+        self.create_automation_buttons()
+        
+        # --- 오른쪽 프레임 (로그) ---
+        self.right_frame = customtkinter.CTkFrame(self, corner_radius=10)
+        self.right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-# 스레드에서 함수 실행으로 GUI 응답성 확보
-btn_options = [
-    {"text": "업무포털 접속", "command": lambda: run_in_thread(open_eduptl)},
-    {"text": "업무포털 로그인", "command": lambda: run_in_thread(do_login_only)},
-    {"text": "나이스 출결 바로가기", "command": lambda: run_in_thread(neis_attendace)},
-    {"text": "행동특성 및 종합의견 붙여넣기", "command": lambda: run_in_thread(neis_haengteuk)},
-    {"text": "학기말 종합의견 (담임)", "command": lambda: run_in_thread(neis_hakjjong)},
-    {"text": "학기말 종합의견 (교과)", "command": lambda: run_in_thread(neis_class_hakjjong)}
-]
+        # 로그 제목
+        self.log_title = customtkinter.CTkLabel(
+            self.right_frame,
+            text="작업 로그",
+            font=customtkinter.CTkFont(size=16, weight="bold")
+        )
+        self.log_title.pack(pady=(10, 5), padx=10)
 
-# 버튼 배치
-for idx, option in enumerate(btn_options):
-    button = tk.Button(window, text=option["text"], command=option["command"], **btn_styles)
-    button.place(relx=0.5, rely=0.28 + 0.11 * idx, anchor=tk.CENTER)
+        # 로그 출력 텍스트 박스
+        self.log_textbox = customtkinter.CTkTextbox(
+            self.right_frame, 
+            state="disabled", 
+            corner_radius=10, 
+            font=customtkinter.CTkFont(size=12),
+            wrap="word"
+        )
+        self.log_textbox.pack(expand=True, fill="both", padx=10, pady=(0, 10))
+        
+        # 로그 클리어 버튼
+        self.clear_log_button = customtkinter.CTkButton(
+            self.right_frame,
+            text="로그 지우기",
+            command=self.clear_log,
+            width=100,
+            height=30
+        )
+        self.clear_log_button.pack(pady=(0, 10))
+        
+        # --- 초기 로그 메시지 추가 ---
+        self.add_log("프로그램이 준비되었습니다.")
 
-# ❼ 만든 화면 실행
-window.mainloop()
+    def create_automation_buttons(self):
+        """자동화 작업 버튼들을 생성하는 함수"""
+        button_configs = [
+            {"text": "업무포털 접속", "command": self.run_open_eduptl},
+            {"text": "업무포털 로그인", "command": self.run_do_login_only},
+            {"text": "나이스 출결 바로가기", "command": self.run_neis_attendace},
+            {"text": "행동특성 및 종합의견 입력", "command": self.run_neis_haengteuk},
+            {"text": "학기말 종합의견 (담임)", "command": self.run_neis_hakjjong},
+            {"text": "학기말 종합의견 (교과)", "command": self.run_neis_class_hakjjong}
+        ]
+        
+        for config in button_configs:
+            button = customtkinter.CTkButton(
+                self.left_frame,
+                text=config["text"],
+                command=config["command"],
+                font=customtkinter.CTkFont(size=12, weight="bold"),
+                height=40,
+                corner_radius=8
+            )
+            button.pack(pady=5, padx=20, fill="x")
+
+    def add_log(self, message):
+        """로그 텍스트 박스에 메시지를 추가하는 함수"""
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        log_message = f"[{timestamp}] {message}"
+        
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.insert("end", log_message + "\n")
+        self.log_textbox.configure(state="disabled")
+        self.log_textbox.see("end")
+
+    def clear_log(self):
+        """로그를 지우는 함수"""
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.delete("1.0", "end")
+        self.log_textbox.configure(state="disabled")
+        self.add_log("로그가 지워졌습니다.")
+
+    def run_in_thread_with_log(self, func, func_name):
+        """함수를 스레드에서 실행하고 로그를 남기는 헬퍼 함수"""
+        def wrapper():
+            try:
+                self.add_log(f"{func_name} 작업을 시작합니다...")
+                func()
+                self.add_log(f"{func_name} 작업이 완료되었습니다.")
+            except Exception as e:
+                error_msg = f"{func_name} 작업 중 오류가 발생했습니다: {str(e)}"
+                self.add_log(error_msg)
+                # GUI 스레드에서 messagebox 실행
+                self.after(0, lambda: messagebox.showerror("오류", error_msg))
+        
+        thread = threading.Thread(target=wrapper, daemon=True)
+        thread.start()
+
+    # --- 각 자동화 작업을 실행하는 함수들 ---
+    def run_open_eduptl(self):
+        self.run_in_thread_with_log(open_eduptl, "업무포털 접속")
+
+    def run_do_login_only(self):
+        self.run_in_thread_with_log(do_login_only, "업무포털 로그인")
+
+    def run_neis_attendace(self):
+        self.run_in_thread_with_log(neis_attendace, "나이스 출결 바로가기")
+
+    def run_neis_haengteuk(self):
+        self.run_in_thread_with_log(neis_haengteuk, "행동특성 및 종합의견 입력")
+
+    def run_neis_hakjjong(self):
+        self.run_in_thread_with_log(neis_hakjjong, "학기말 종합의견 (담임)")
+
+    def run_neis_class_hakjjong(self):
+        self.run_in_thread_with_log(neis_class_hakjjong, "학기말 종합의견 (교과)")
+
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()
