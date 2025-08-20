@@ -1,6 +1,7 @@
 # utils.py (수정된 코드)
 
 import os.path
+import configparser
 from tkinter import filedialog, messagebox
 import pandas as pd
 from playwright.sync_api import Page, Browser, expect
@@ -38,9 +39,17 @@ def login(page: Page):
 # (이하 다른 모든 함수들은 변경 없음)
 # ... (get_password_from_file, neis_go_menu 등)
 def get_password_from_file():
-    password_filepath = 'C:\\GPKI\\password.txt'
+    config = configparser.ConfigParser()
+    config.read('config.ini', encoding='utf-8')
+    
+    try:
+        password_filepath = config['Paths']['password_file']
+    except (KeyError, configparser.NoSectionError):
+        password_filepath = 'C:\\GPKI\\password.txt'  # 기본값
+    
     if not os.path.exists(password_filepath):
         raise FileNotFoundError(f"비밀번호 파일을 찾을 수 없습니다.\n{password_filepath} 경로에 비밀번호를 저장하세요.")
+    
     with open(password_filepath, 'r') as file:
         return file.read().strip()
     

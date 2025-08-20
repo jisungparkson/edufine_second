@@ -1,9 +1,15 @@
-# interface.py (스레드 없는 버전)
+# interface.py (스레드 기반 버전)
 import tkinter as tk
+import threading
 from btn_commands import (
     open_eduptl, do_login_only, neis_attendace, neis_haengteuk,
     neis_hakjjong, neis_class_hakjjong
 )
+
+def run_in_thread(func):
+    """함수를 별도 스레드에서 실행하여 GUI 응답성을 유지합니다"""
+    thread = threading.Thread(target=func, daemon=True)
+    thread.start()
 
 # ➊ 기본 스타일 정의
 bgcolor = '#005887'
@@ -38,14 +44,14 @@ btn_styles = {
     'relief': 'raised'
 }
 
-# 스레드 없이 직접 함수 호출
+# 스레드에서 함수 실행으로 GUI 응답성 확보
 btn_options = [
-    {"text": "업무포털 접속", "command": open_eduptl},
-    {"text": "업무포털 로그인", "command": do_login_only},
-    {"text": "나이스 출결 바로가기", "command": neis_attendace},
-    {"text": "행동특성 및 종합의견 붙여넣기", "command": neis_haengteuk},
-    {"text": "학기말 종합의견 (담임)", "command": neis_hakjjong},
-    {"text": "학기말 종합의견 (교과)", "command": neis_class_hakjjong}
+    {"text": "업무포털 접속", "command": lambda: run_in_thread(open_eduptl)},
+    {"text": "업무포털 로그인", "command": lambda: run_in_thread(do_login_only)},
+    {"text": "나이스 출결 바로가기", "command": lambda: run_in_thread(neis_attendace)},
+    {"text": "행동특성 및 종합의견 붙여넣기", "command": lambda: run_in_thread(neis_haengteuk)},
+    {"text": "학기말 종합의견 (담임)", "command": lambda: run_in_thread(neis_hakjjong)},
+    {"text": "학기말 종합의견 (교과)", "command": lambda: run_in_thread(neis_class_hakjjong)}
 ]
 
 # 버튼 배치

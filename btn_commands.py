@@ -100,6 +100,16 @@ def _handle_error(e):
     messagebox.showerror("오류 발생", error_message)
     browser_manager.close()
 
+def _navigate_to_neis() -> Page:
+    """나이스 페이지로 이동하는 공통 함수"""
+    # 업무포털 먼저 접속하여 기존 창 확보
+    open_eduptl()
+    
+    # 현재 업무포털 페이지에서 나이스 URL로 이동
+    page = browser_manager.get_page()
+    page.goto(urls['나이스'])
+    return page
+
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
     print("로그인 성공 확인 중... (페이지 로딩 대기)")
@@ -202,12 +212,7 @@ def do_login_only():
 def neis_attendace():
     """나이스 출결관리 메뉴로 이동"""
     try:
-        # 업무포털 먼저 접속하여 기존 창 확보
-        open_eduptl()
-        
-        # 현재 업무포털 페이지에서 나이스 URL로 이동
-        page = browser_manager.get_page()
-        page.goto(urls['나이스'])
+        page = _navigate_to_neis()
         
         neis_go_menu(page, '학급담임', '학적', '출결관리', '출결관리')
         neis_click_btn(page, '조회')
@@ -218,12 +223,7 @@ def neis_attendace():
 def neis_haengteuk():
     """행동특성 및 종합의견 입력"""
     try:
-        # 업무포털 먼저 접속하여 기존 창 확보
-        open_eduptl()
-        
-        # 현재 업무포털 페이지에서 나이스 URL로 이동
-        page = browser_manager.get_page()
-        page.goto(urls['나이스'])
+        page = _navigate_to_neis()
 
         data = get_excel_data()
         if data is None:
@@ -249,12 +249,7 @@ def neis_haengteuk():
 def neis_hakjjong():
     """학기말 종합의견(담임) 메뉴로 이동"""
     try:
-        # 업무포털 먼저 접속하여 기존 창 확보
-        open_eduptl()
-        
-        # 현재 업무포털 페이지에서 나이스 URL로 이동
-        page = browser_manager.get_page()
-        page.goto(urls['나이스'])
+        page = _navigate_to_neis()
         
         neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
         messagebox.showinfo("완료", "학기말 종합의견(담임) 메뉴로 이동했습니다.")
@@ -264,12 +259,7 @@ def neis_hakjjong():
 def neis_class_hakjjong():
     """학기말 종합의견(교과) 메뉴로 이동"""
     try:
-        # 업무포털 먼저 접속하여 기존 창 확보
-        open_eduptl()
-        
-        # 현재 업무포털 페이지에서 나이스 URL로 이동
-        page = browser_manager.get_page()
-        page.goto(urls['나이스'])
+        page = _navigate_to_neis()
              
         neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
         messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
