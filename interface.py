@@ -18,6 +18,14 @@ class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
 
+        # --- 폰트 설정 (가독성 개선) ---
+        self.font_title = customtkinter.CTkFont(family="맑은 고딕", size=26, weight="bold")
+        self.font_subtitle = customtkinter.CTkFont(family="맑은 고딕", size=13, weight="normal")
+        self.font_button = customtkinter.CTkFont(family="맑은 고딕", size=14, weight="bold")
+        self.font_log_title = customtkinter.CTkFont(family="맑은 고딕", size=18, weight="bold")
+        self.font_log = customtkinter.CTkFont(family="맑은 고딕", size=13, weight="normal")
+        self.font_small_button = customtkinter.CTkFont(family="맑은 고딕", size=12, weight="bold")
+
         # --- 윈도우(창) 설정 ---
         self.title("업무포털 자동화 프로그램 v3.0")
         self.geometry("900x600")
@@ -38,7 +46,8 @@ class App(customtkinter.CTk):
         self.label_title = customtkinter.CTkLabel(
             self.left_frame, 
             text="업무포털 자동화", 
-            font=customtkinter.CTkFont(size=24, weight="bold")
+            font=self.font_title,
+            text_color="#1f538d"
         )
         self.label_title.pack(pady=20, padx=10)
         
@@ -46,7 +55,8 @@ class App(customtkinter.CTk):
         self.label_subtitle = customtkinter.CTkLabel(
             self.left_frame,
             text="업무 자동화를 위한 다양한 기능을 선택하세요",
-            font=customtkinter.CTkFont(size=12)
+            font=self.font_subtitle,
+            text_color="#5a5a5a"
         )
         self.label_subtitle.pack(pady=(0, 20), padx=10)
 
@@ -61,7 +71,8 @@ class App(customtkinter.CTk):
         self.log_title = customtkinter.CTkLabel(
             self.right_frame,
             text="작업 로그",
-            font=customtkinter.CTkFont(size=16, weight="bold")
+            font=self.font_log_title,
+            text_color="#1f538d"
         )
         self.log_title.pack(pady=(10, 5), padx=10)
 
@@ -70,7 +81,7 @@ class App(customtkinter.CTk):
             self.right_frame, 
             state="disabled", 
             corner_radius=10, 
-            font=customtkinter.CTkFont(size=12),
+            font=self.font_log,
             wrap="word"
         )
         self.log_textbox.pack(expand=True, fill="both", padx=10, pady=(0, 10))
@@ -80,8 +91,10 @@ class App(customtkinter.CTk):
             self.right_frame,
             text="로그 지우기",
             command=self.clear_log,
-            width=100,
-            height=30
+            font=self.font_small_button,
+            width=120,
+            height=35,
+            corner_radius=8
         )
         self.clear_log_button.pack(pady=(0, 10))
         
@@ -104,11 +117,11 @@ class App(customtkinter.CTk):
                 self.left_frame,
                 text=config["text"],
                 command=config["command"],
-                font=customtkinter.CTkFont(size=12, weight="bold"),
-                height=40,
-                corner_radius=8
+                font=self.font_button,
+                height=45,
+                corner_radius=10
             )
-            button.pack(pady=5, padx=20, fill="x")
+            button.pack(pady=6, padx=20, fill="x")
 
     def add_log(self, message):
         """로그 텍스트 박스에 메시지를 추가하는 함수"""
