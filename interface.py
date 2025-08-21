@@ -6,7 +6,7 @@ import datetime
 from tkinter import messagebox
 from btn_commands import (
     open_eduptl, do_login_only, neis_attendace, neis_haengteuk,
-    neis_hakjjong, neis_class_hakjjong
+    neis_hakjjong, neis_class_hakjjong, browser_manager
 )
 
 # --- UI 기본 설정 ---
@@ -21,6 +21,9 @@ class App(customtkinter.CTk):
         # --- 윈도우(창) 설정 ---
         self.title("업무포털 자동화 프로그램 v3.0")
         self.geometry("900x600")
+        
+        # 창 닫기 이벤트 처리
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # --- 그리드 레이아웃 설정 ---
         self.grid_columnconfigure(0, weight=1)
@@ -158,6 +161,17 @@ class App(customtkinter.CTk):
 
     def run_neis_class_hakjjong(self):
         self.run_in_thread_with_log(neis_class_hakjjong, "학기말 종합의견 (교과)")
+
+    def on_closing(self):
+        """창이 닫힐 때 호출될 함수 - 브라우저 리소스를 안전하게 정리"""
+        self.add_log("프로그램을 종료합니다. 브라우저 리소스를 정리합니다...")
+        try:
+            browser_manager.close()  # Playwright를 안전하게 종료
+            self.add_log("브라우저 리소스가 정리되었습니다.")
+        except Exception as e:
+            self.add_log(f"브라우저 정리 중 오류: {str(e)}")
+        finally:
+            self.destroy()  # CustomTkinter 창 닫기
 
 
 if __name__ == "__main__":
