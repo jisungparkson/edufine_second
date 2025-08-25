@@ -4,7 +4,7 @@ import os.path
 import configparser
 from tkinter import filedialog, messagebox
 import pandas as pd
-from playwright.sync_api import Page, Browser, expect
+from playwright.sync_api import Page, Browser, expect, TimeoutError
 
 # (urls 딕셔너리 등 다른 부분은 변경 없음)
 urls = {
@@ -15,24 +15,49 @@ urls = {
 }
 
 def login(page: Page):
-    """업무포털에서 로그인하는 함수 (Playwright)"""
-    # 1. 전자인증서 로그인 버튼 클릭
-    page.locator('button.elec-log-btn').click()
-    
-    # 2. 새 창이 열릴 때까지 대기
-    page.wait_for_timeout(2000)
-    
-    # 3. 비밀번호 입력 필드에 비밀번호 입력
-    password_input = page.locator('input[name="certPassword"]')
-    password = get_password_from_file()
-    password_input.fill(password)
-    
-    # 4. kc-btn-blue 클래스 버튼 클릭 (확인 버튼)
-    page.locator('button.kc-btn-blue').click()
-    
-    # --- [수정된 부분] ---
-    # 여기서 대기하지 않고, 함수를 호출한 쪽에서 대기하도록 책임을 넘깁니다.
-    # page.wait_for_load_state('networkidle') # 이 줄을 삭제 또는 주석 처리합니다.
+    """업무포털에서 로그인하는 함수 (Playwright) - 안정성 강화 버전"""
+    try:
+        print("전자인증서 로그인 버튼을 찾습니다...")
+        login_button = page.locator('button.elec-log-btn')
+        expect(login_button).to_be_visible(timeout=10000)
+        expect(login_button).to_be_enabled(timeout=10000)
+        print("버튼을 클릭합니다.")
+        login_button.click()
+
+        page.wait_for_timeout(2000)
+        
+        print("비밀번호 입력창을 찾습니다...")
+        password_input = page.locator('input[name="certPassword"]')
+        expect(password_input).to_be_visible(timeout=10000)
+        
+        password = get_password_from_file()
+        password_input.fill(password)
+        
+        print("여러 개의 '확인' 버튼 중 정확한 버튼을 찾아 클릭합니다...")
+        
+        # 역할이 'button'이고 이름이 '확인'인 요소를 찾습니다.
+        # 이것이 'button.kc-btn-blue'보다 훨씬 더 안정적입니다.
+        confirm_button_locator = page.get_by_role("button", name="확인", exact=True)
+        
+        # 여러 개가 발견되었으므로, 그중 마지막 버튼을 선택합니다.
+        # 인증서 창의 메인 확인 버튼은 보통 가장 마지막에 있는 경우가 많습니다.
+        final_confirm_button = confirm_button_locator.last
+        
+        # 마지막 버튼이 클릭 가능한 상태가 될 때까지 기다린 후 클릭
+        expect(final_confirm_button).to_be_enabled(timeout=10000)
+        final_confirm_button.click()
+        print("확인 버튼 클릭 완료")
+        
+    except TimeoutError as e:
+        error_msg = f"로그인 과정에서 요소를 찾을 수 없습니다: {str(e)}"
+        print(error_msg)
+        messagebox.showerror("로그인 오류", error_msg)
+        raise
+    except Exception as e:
+        error_msg = f"로그인 중 예상치 못한 오류 발생: {str(e)}"
+        print(error_msg)
+        messagebox.showerror("로그인 오류", error_msg)
+        raise
 
 
 
