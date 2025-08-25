@@ -16,60 +16,32 @@ class BrowserManager:
         print("BrowserManager가 준비되었습니다.")
 
     def get_page(self) -> Page:
-        """현재 사용 가능한, 유효한 페이지 객체를 반환합니다."""
-        # 1. 플레이라이트 자체가 시작되지 않았다면, 기존 브라우저 연결 시도
+        """
+        [배포용 수정 버전]
+        항상 새로운 브라우저를 시작하고, 유효한 페이지 객체를 반환합니다.
+        """
+        # 1. 플레이라이트 인스턴스가 없으면 새로 시작합니다.
         if self.playwright is None:
             print("Playwright 인스턴스를 시작합니다.")
             self.playwright = sync_playwright().start()
-            
-            # 기존 Edge 브라우저에 연결 시도
-            try:
-                print("기존 Edge 브라우저에 연결을 시도합니다...")
-                self.browser = self.playwright.chromium.connect_over_cdp("http://localhost:9222")
-                print("기존 브라우저에 성공적으로 연결되었습니다!")
-                
-                # 기존 탭 중에서 업무포털 관련 페이지 찾기
-                for context in self.browser.contexts:
-                    for page in context.pages:
-                        try:
-                            if 'eduptl' in page.url or 'neis' in page.url or '업무포털' in page.title():
-                                print(f"기존 페이지를 사용합니다: {page.title()}")
-                                self.page = page
-                                page.bring_to_front()
-                                return self.page
-                        except:
-                            continue
-                
-                # 기존 페이지가 없으면 새 페이지 생성
-                if len(self.browser.contexts) > 0:
-                    self.page = self.browser.contexts[0].new_page()
-                else:
-                    context = self.browser.new_context()
-                    self.page = context.new_page()
-                    
-            except Exception as e:
-                print(f"기존 브라우저 연결 실패: {e}")
-                print("새 브라우저를 시작합니다.")
-                self.browser = self.playwright.chromium.launch(headless=False, channel="msedge")
-        
-        # 2. 브라우저가 꺼졌다면, 다시 연결 시도 후 새로 켭니다.
-        if not self.browser.is_connected():
-            print("브라우저 연결이 끊어져 재연결을 시도합니다.")
-            try:
-                self.browser = self.playwright.chromium.connect_over_cdp("http://localhost:9222")
-                print("기존 브라우저에 재연결되었습니다!")
-            except:
-                print("재연결 실패, 새 브라우저를 시작합니다.")
-                self.browser = self.playwright.chromium.launch(headless=False, channel="msedge")
+
+        # 2. 브라우저가 없거나, 연결이 끊겼다면 새로 시작합니다.
+        #    connect_over_cdp (기존 브라우저 연결) 로직을 완전히 제거합니다.
+        if self.browser is None or not self.browser.is_connected():
+            print("새 브라우저를 시작합니다.")
+            # headless=False는 브라우저 창이 보이도록 하는 옵션입니다.
+            self.browser = self.playwright.chromium.launch(headless=False, channel="msedge")
 
         # 3. 페이지가 없거나 닫혔다면, 새로 만듭니다.
         if self.page is None or self.page.is_closed():
-            print("페이지가 닫혀있어 새로 생성합니다.")
+            print("페이지를 새로 생성합니다.")
+            # 이미 컨텍스트가 있을 수 있으므로 확인 후 새 페이지를 만듭니다.
             if len(self.browser.contexts) > 0:
                 self.page = self.browser.contexts[0].new_page()
             else:
                 context = self.browser.new_context()
                 self.page = context.new_page()
+            
             self.page.set_viewport_size({"width": 1920, "height": 1080})
 
         return self.page
