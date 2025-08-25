@@ -142,27 +142,40 @@ def open_eduptl():
         _handle_error(e)
 
 def do_login_only():
-    """현재 페이지가 로그인 페이지일 경우에만 로그인을 수행하는 함수"""
+    """
+    현재 어느 페이지에 있든, 업무포털 로그인 화면으로 이동하여 로그인을 수행합니다.
+    """
     try:
         page = browser_manager.get_page()
+        page.bring_to_front()
 
-        # 현재 페이지 URL 확인
         current_url = page.url
         print(f"현재 페이지 URL: {current_url}")
         
-        # 업무포털 메인 페이지로 이동
-        if not current_url.startswith('https://jbe.eduptl.kr'):
-            page.goto(urls['업무포털 메인'])
+        # --- [핵심 수정 로직] ---
+        # 현재 URL에 'eduptl.kr' (업무포털) 주소가 포함되어 있고, 그 페이지가 로그인 페이지가 아닌 경우를 제외하고는
+        # 모두 로그인 페이지로 이동시킵니다.
+        # 이렇게 하면 about:blank, neis.go.kr 등 어떤 페이지에 있더라도 로그인 페이지로 갑니다.
+        if not ('eduptl.kr' in current_url and current_url.endswith('lg00_001.do')):
+            
+            # 만약 이미 업무포털의 다른 페이지에 있다면, 그냥 로그인 페이지만 띄웁니다.
+            if 'eduptl.kr' in current_url:
+                print("업무포털의 다른 페이지에 있습니다. 로그인 페이지로 이동합니다...")
+                page.goto(urls['업무포털 로그인'])
+            # 그 외의 경우 (about:blank, naver.com 등) 에는 업무포털 메인으로 먼저 갑니다.
+            else:
+                print("업무포털 페이지가 아니므로, 메인 페이지로 이동합니다...")
+                page.goto(urls['업무포털 메인'])
+        
             page.wait_for_load_state('networkidle')
-            current_url = page.url
-            print(f"이동 후 URL: {current_url}")
+        
+        # 페이지 URL이 로그인 페이지가 맞는지 한번 더 확인하고, 아니라면 이동
+        if urls['업무포털 로그인'] not in page.url:
+            page.goto(urls['업무포털 로그인'])
+            page.wait_for_load_state('networkidle')
+        # --- [수정 로직 끝] ---
 
-        # 로그인 페이지가 아니면 경고
-        if current_url != urls['업무포털 로그인']:
-            messagebox.showwarning("경고", "이 기능은 업무포털 로그인 화면에서만 사용할 수 있습니다.")
-            page.bring_to_front()
-            return
-
+        print("로그인을 시작합니다.")
         login(page)
         _wait_for_login_success(page)
         
@@ -174,7 +187,7 @@ def do_login_only():
             close_button = page.get_by_role("button", name="닫기", exact=True)
             close_button.click()
         except TimeoutError:
-            print("팝업창이 없거나 관련 요소를 찾지 못해 넘어갑니다.")
+            print("로그인 후 팝업창이 없거나 관련 요소를 찾지 못해 넘어갑니다.")
         
         messagebox.showinfo("성공", "로그인이 완료되었습니다.")
 
