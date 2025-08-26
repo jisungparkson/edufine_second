@@ -80,7 +80,8 @@ def _navigate_to_neis() -> Page:
     
     with portal_page.expect_popup() as popup_info:
         print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
-        portal_page.get_by_role("link", name="나이스", exact=True).click()
+        # '나이스' 링크가 여러 개 발견되었으므로, 그 중 첫 번째 것을 클릭하도록 .first를 추가합니다.
+        portal_page.get_by_role("link", name="나이스", exact=True).first.click()
     
     neis_page = popup_info.value
     print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
