@@ -73,14 +73,20 @@ def _handle_error(e):
     browser_manager.close()
 
 def _navigate_to_neis() -> Page:
-    """나이스 페이지로 이동하는 공통 함수"""
-    # 업무포털 먼저 접속하여 기존 창 확보
+    """업무포털에 로그인하고, '나이스' 버튼을 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다."""
+    print("업무포털에 접속하여 나이스로 이동을 시작합니다.")
     open_eduptl()
+    portal_page = browser_manager.get_page()
     
-    # 현재 업무포털 페이지에서 나이스 URL로 이동
-    page = browser_manager.get_page()
-    page.goto(urls['나이스'])
-    return page
+    with portal_page.expect_popup() as popup_info:
+        print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
+        portal_page.get_by_role("link", name="나이스", exact=True).click()
+    
+    neis_page = popup_info.value
+    print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
+    neis_page.wait_for_load_state("networkidle")
+    browser_manager.page = neis_page
+    return neis_page
 
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
@@ -124,19 +130,20 @@ def open_eduptl():
             return
             
         page.goto(urls['업무포털 메인'])
-        if page.url == urls['업무포털 로그인']:
+        
+        # 서비스 중단 안내 팝업 처리 (새로 추가된 부분)
+        try:
+            popup_layer = page.locator('div#popupslider')
+            popup_layer.wait_for(state='visible', timeout=5000)
+            close_button = page.locator('button.btn-x')
+            close_button.click()
+            print("서비스 중단 안내 팝업을 닫았습니다.")
+        except TimeoutError:
+            print("서비스 중단 팝업이 나타나지 않았거나 시간 내에 찾지 못해 넘어갑니다.")
+        
+        if urls['업무포털 로그인'] in page.url:
             login(page)
             _wait_for_login_success(page)
-
-        # 팝업 처리
-        try:
-            dont_show_today_checkbox = page.get_by_label("오늘하루 이창 열지 않기", exact=True)
-            dont_show_today_checkbox.wait_for(state='visible', timeout=5000)
-            dont_show_today_checkbox.check()
-            close_button = page.get_by_role("button", name="닫기", exact=True)
-            close_button.click()
-        except TimeoutError:
-            print("팝업창이 없거나 관련 요소를 찾지 못해 넘어갑니다.")
 
     except Exception as e:
         _handle_error(e)
