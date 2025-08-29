@@ -6,6 +6,7 @@ from utils import (
     neis_fill_row, switch_tab, open_url_in_new_tab
 )
 from tkinter import messagebox
+from paste_helper import PasteHelperWindow
 
 class BrowserManager:
     """Playwright의 브라우저 상태를 총괄 관리하는 클래스"""
@@ -258,3 +259,7 @@ def neis_class_hakjjong():
         messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
     except Exception as e:
         _handle_error(e)
+
+def open_paste_helper(parent_window):
+    """붙여넣기 도우미 창을 엽니다."""
+    PasteHelperWindow(parent_window)

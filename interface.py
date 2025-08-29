@@ -6,7 +6,7 @@ import datetime
 from tkinter import messagebox
 from btn_commands import (
     open_eduptl, do_login_only, neis_attendace, neis_haengteuk,
-    neis_hakjjong, neis_class_hakjjong, browser_manager
+    neis_hakjjong, neis_class_hakjjong, browser_manager, open_paste_helper
 )
 
 # --- UI 기본 설정 ---
@@ -109,7 +109,8 @@ class App(customtkinter.CTk):
             {"text": "나이스 출결 바로가기", "command": self.run_neis_attendace},
             {"text": "행동특성 및 종합의견 입력", "command": self.run_neis_haengteuk},
             {"text": "학기말 종합의견 (담임)", "command": self.run_neis_hakjjong},
-            {"text": "학기말 종합의견 (교과)", "command": self.run_neis_class_hakjjong}
+            {"text": "학기말 종합의견 (교과)", "command": self.run_neis_class_hakjjong},
+            {"text": "붙여넣기 도우미", "command": self.run_open_paste_helper}
         ]
         
         for config in button_configs:
@@ -174,6 +175,11 @@ class App(customtkinter.CTk):
 
     def run_neis_class_hakjjong(self):
         self.run_in_thread_with_log(neis_class_hakjjong, "학기말 종합의견 (교과)")
+
+    def run_open_paste_helper(self):
+        self.add_log("복사/붙여넣기 도우미를 엽니다.")
+        # 이 함수는 GUI 창을 직접 생성하므로 스레드에서 실행하지 않습니다.
+        open_paste_helper(self)  # 'self'가 메인 윈도우 인스턴스입니다.
 
     def on_closing(self):
         """창이 닫힐 때 호출될 함수 - 브라우저 리소스를 안전하게 정리"""
