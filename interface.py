@@ -244,9 +244,10 @@ class App(customtkinter.CTk):
     # --- 스마트 붙여넣기 관련 메소드들 ---
     def start_paste_automation(self):
         """자동 붙여넣기를 시작합니다."""
-        content = self.paste_textbox.get("1.0", "end").strip()
+        # 클립보드에서 직접 텍스트 읽기
+        content = pyperclip.paste().strip()
         if not content:
-            messagebox.showwarning("경고", "붙여넣을 내용을 입력해주세요.")
+            messagebox.showwarning("경고", "클립보드에 붙여넣을 내용이 없습니다.")
             return
         
         selected_mode = self.mode_combobox.get()
@@ -306,17 +307,21 @@ class App(customtkinter.CTk):
                 
                 self.update_paste_status(f"진행 중... ({idx}/{total_items})")
                 
+                # 기존 내용 모두 선택 후 삭제 (안정성 향상)
+                pyautogui.hotkey('ctrl', 'a')
+                time.sleep(0.1)
+                pyautogui.press('delete')
+                time.sleep(0.1)
+                
                 # 클립보드에 텍스트 복사
                 pyperclip.copy(data)
-                
-                # 짧은 대기
                 time.sleep(0.1)
                 
                 # Ctrl+V로 붙여넣기
                 pyautogui.hotkey('ctrl', 'v')
+                time.sleep(0.2)
                 
                 # 지정된 횟수만큼 Tab 키 누르기
-                time.sleep(0.2)
                 for _ in range(tab_count):
                     pyautogui.press('tab')
                     time.sleep(0.1)
