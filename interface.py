@@ -46,16 +46,17 @@ class App(customtkinter.CTk):
         self.font_paste_title = customtkinter.CTkFont(family="맑은 고딕", size=16, weight="bold")
 
         # --- 윈도우(창) 설정 ---
-        self.title("업무포털 자동화 프로그램 v3.1 - 통합 버전")
-        self.geometry("1400x700")
+        self.title("업무포털 자동화 프로그램 v3.0")
+        self.geometry("1200x700") # 3단 레이아웃을 위해 너비를 좀 더 넓힙니다.
         
         # 창 닫기 이벤트 처리
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-        # --- 3단 그리드 레이아웃 설정 ---
-        self.grid_columnconfigure(0, weight=1)     # 왼쪽: 기본 버튼들
-        self.grid_columnconfigure(1, weight=1.5)   # 가운데: 스마트 붙여넣기
-        self.grid_columnconfigure(2, weight=2)     # 오른쪽: 로그
+          # --- [핵심 수정 부분] ---
+        # 그리드 레이아웃 설정 - weight를 모두 정수로 변경
+        self.grid_columnconfigure(0, weight=2)   # 왼쪽: 자동화 버튼
+        self.grid_columnconfigure(1, weight=3)   # 가운데: 스마트 붙여넣기
+        self.grid_columnconfigure(2, weight=4)   # 오른쪽: 로그
         self.grid_rowconfigure(0, weight=1)
 
         # UI 생성
@@ -69,7 +70,7 @@ class App(customtkinter.CTk):
     def create_left_frame(self):
         """왼쪽 프레임 (기존 자동화 작업 버튼들)을 생성"""
         self.left_frame = customtkinter.CTkFrame(self, corner_radius=10)
-        self.left_frame.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="nsew")
+        self.left_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
         # UI 제목
         self.label_title = customtkinter.CTkLabel(
@@ -106,28 +107,6 @@ class App(customtkinter.CTk):
         )
         paste_title.pack(pady=(15, 10), padx=10)
 
-        # 설정 프레임
-        settings_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
-        settings_frame.pack(fill="x", padx=15, pady=(0, 10))
-
-        # 항목 선택 라벨
-        mode_label = customtkinter.CTkLabel(
-            settings_frame,
-            text="항목 선택:",
-            font=self.font_subtitle
-        )
-        mode_label.pack(anchor="w", padx=10, pady=(10, 5))
-
-        # 항목 선택 콤보박스
-        self.mode_combobox = customtkinter.CTkComboBox(
-            settings_frame,
-            values=list(self.INPUT_MODES.keys()),
-            font=self.font_subtitle,
-            state="readonly"
-        )
-        self.mode_combobox.pack(fill="x", padx=10, pady=(0, 10))
-        self.mode_combobox.set(list(self.INPUT_MODES.keys())[0])  # 첫 번째 항목으로 기본 선택
-
         # 내용 입력 라벨
         content_label = customtkinter.CTkLabel(
             self.middle_frame,
@@ -144,6 +123,28 @@ class App(customtkinter.CTk):
             corner_radius=8
         )
         self.paste_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+
+        # 설정 프레임 (내문 아래)
+        settings_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
+        settings_frame.pack(fill="x", padx=15, pady=(0, 10))
+
+        # 항목 선택 라벨
+        mode_label = customtkinter.CTkLabel(
+            settings_frame,
+            text="입력 항목 선택:",
+            font=self.font_subtitle
+        )
+        mode_label.pack(anchor="w", padx=10, pady=(10, 5))
+
+        # 항목 선택 콤보박스
+        self.mode_combobox = customtkinter.CTkComboBox(
+            settings_frame,
+            values=list(self.INPUT_MODES.keys()),
+            font=self.font_subtitle,
+            state="readonly"
+        )
+        self.mode_combobox.pack(fill="x", padx=10, pady=(0, 10))
+        self.mode_combobox.set(list(self.INPUT_MODES.keys())[0])  # 첫 번째 항목으로 기본 선택
 
         # 버튼 프레임
         button_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
