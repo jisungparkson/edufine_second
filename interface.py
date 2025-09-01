@@ -94,123 +94,105 @@ class App(customtkinter.CTk):
         self.create_automation_buttons()
 
     def create_middle_frame(self):
-        """가운데 프레임 (스마트 붙여넣기 기능)을 생성"""
         self.middle_frame = customtkinter.CTkFrame(self, corner_radius=10)
         self.middle_frame.grid(row=0, column=1, padx=5, pady=10, sticky="nsew")
 
-        # 제목
-        paste_title = customtkinter.CTkLabel(
-            self.middle_frame,
-            text="📋 스마트 붙여넣기",
-            font=self.font_paste_title,
-            text_color="#1f538d"
-        )
-        paste_title.pack(pady=(15, 10), padx=10)
+        # --- [핵심 수정] 안내문 UI를 이미지와 같이 재구성 ---
+        # 1. 모든 안내문을 담을 외부 프레임
+        guide_container = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
+        guide_container.pack(fill="x", expand=False, padx=15, pady=15)
 
-        # 사용법 가이드 프레임
-        guide_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8, fg_color="#f0f8ff")
-        guide_frame.pack(fill="x", padx=15, pady=(0, 15))
+        # 2. 안내문 제목 ("사용법 (4단계)")
+        guide_title_frame = customtkinter.CTkFrame(guide_container, fg_color="transparent")
+        guide_title_frame.pack(fill="x", padx=15, pady=(10, 5))
+        
+        guide_icon = customtkinter.CTkLabel(guide_title_frame, text="🪄", font=("맑은 고딕", 18)) # 아이콘 대신 이모지 사용
+        guide_icon.pack(side="left")
 
         guide_title = customtkinter.CTkLabel(
-            guide_frame,
-            text="✨ 사용법 (4단계)",
-            font=customtkinter.CTkFont(family="맑은 고딕", size=14, weight="bold"),
-            text_color="#2c5282"
+            guide_title_frame,
+            text="사용법 (4단계)",
+            font=self.font_paste_title
         )
-        guide_title.pack(pady=(10, 5), padx=10)
+        guide_title.pack(side="left", padx=5)
 
-        guide_steps = [
-            "1️⃣ 엑셀/한글에서 입력할 내용을 모두 복사 (Ctrl+C)",
-            "2️⃣ 아래에서 '입력 항목'을 선택하세요",
-            "3️⃣ '자동 입력 시작' 버튼을 클릭하세요",
-            "4️⃣ 5초 안에 나이스 화면으로 돌아가 입력칸을 클릭하세요"
+        # 3. 각 단계를 담을 내부 프레임
+        steps_frame = customtkinter.CTkFrame(guide_container, fg_color="transparent")
+        steps_frame.pack(fill="x", padx=15, pady=(5, 15))
+
+        # 4. 단계별 텍스트 리스트 (이모지 제거, 순수 텍스트 사용)
+        steps_text = [
+            "1. 엑셀/한글에서 입력할 내용을 모두 복사 (Ctrl+C)",
+            "2. 아래에서 '입력 항목'을 선택하세요",
+            "3. '자동 입력 시작' 버튼을 클릭하세요",
+            "4. 5초 안에 나이스 화면으로 돌아가 입력칸을 클릭하세요"
         ]
 
-        for step in guide_steps:
+        # 5. for 루프를 사용하여 각 단계를 라벨로 생성 및 배치
+        for step in steps_text:
             step_label = customtkinter.CTkLabel(
-                guide_frame,
+                steps_frame,
                 text=step,
-                font=customtkinter.CTkFont(family="맑은 고딕", size=11),
-                text_color="#2d3748",
-                anchor="w"
+                font=self.font_subtitle,
+                justify="left"
             )
-            step_label.pack(anchor="w", padx=15, pady=2)
+            step_label.pack(anchor="w", padx=10, pady=3)
+        # --- [UI 재구성 끝] ---
 
-        guide_frame.pack(pady=(0, 5))
-
-        # 설정 프레임
+        # 설정 프레임 (콤보박스)
         settings_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
         settings_frame.pack(fill="x", padx=15, pady=(0, 10))
 
-        # 항목 선택 라벨
         mode_label = customtkinter.CTkLabel(
             settings_frame,
-            text="📝 입력 항목 선택:",
-            font=customtkinter.CTkFont(family="맑은 고딕", size=13, weight="bold")
+            text="입력 항목 선택:",
+            font=self.font_subtitle
         )
-        mode_label.pack(anchor="w", padx=10, pady=(15, 5))
+        mode_label.pack(anchor="w", padx=10, pady=(10, 5))
 
-        # 항목 선택 콤보박스
         self.mode_combobox = customtkinter.CTkComboBox(
             settings_frame,
             values=list(self.INPUT_MODES.keys()),
             font=self.font_subtitle,
-            state="readonly",
-            height=35
+            state="readonly"
         )
-        self.mode_combobox.pack(fill="x", padx=10, pady=(0, 15))
-        self.mode_combobox.set(list(self.INPUT_MODES.keys())[0])  # 첫 번째 항목으로 기본 선택
+        self.mode_combobox.pack(fill="x", padx=10, pady=(0, 10))
+        self.mode_combobox.set(list(self.INPUT_MODES.keys())[0])
 
-        # 버튼 프레임
+        # 버튼 프레임 (기존과 동일)
         button_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
-        button_frame.pack(fill="x", padx=15, pady=(0, 15))
+        button_frame.pack(fill="x", padx=15, pady=(0, 10))
 
-        # 자동 입력 시작 버튼
         self.start_paste_button = customtkinter.CTkButton(
             button_frame,
-            text="🚀 자동 입력 시작",
+            text="자동 입력 시작",
             command=self.start_paste_automation,
-            font=customtkinter.CTkFont(family="맑은 고딕", size=16, weight="bold"),
-            height=50,
-            corner_radius=10,
-            fg_color="#4CAF50",
-            hover_color="#45a049"
+            font=self.font_button,
+            height=40,
+            corner_radius=8
         )
         self.start_paste_button.pack(side="left", fill="x", expand=True, padx=(10, 5), pady=10)
 
-        # 중단 버튼
         self.stop_paste_button = customtkinter.CTkButton(
             button_frame,
-            text="⏹️ 중단",
+            text="중단",
             command=self.stop_paste_automation,
-            font=customtkinter.CTkFont(family="맑은 고딕", size=14, weight="bold"),
-            height=50,
-            corner_radius=10,
-            fg_color="#f44336",
-            hover_color="#d32f2f",
+            font=self.font_button,
+            height=40,
+            corner_radius=8,
+            fg_color="red",
+            hover_color="darkred",
             state="disabled"
         )
         self.stop_paste_button.pack(side="right", fill="x", expand=True, padx=(5, 10), pady=10)
 
-        # 상태 표시 프레임
-        status_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8, fg_color="#e8f5e8")
-        status_frame.pack(fill="x", padx=15, pady=(0, 15))
-
-        status_title = customtkinter.CTkLabel(
-            status_frame,
-            text="📊 현재 상태:",
-            font=customtkinter.CTkFont(family="맑은 고딕", size=12, weight="bold"),
-            text_color="#2e7d32"
-        )
-        status_title.pack(anchor="w", padx=10, pady=(8, 2))
-
+        # 상태 라벨 (기존과 동일)
         self.paste_status_label = customtkinter.CTkLabel(
-            status_frame,
-            text="✅ 준비됨 - 클립보드에 내용을 복사하고 시작하세요",
-            font=customtkinter.CTkFont(family="맑은 고딕", size=12),
-            text_color="#2e7d32"
+            self.middle_frame,
+            text="준비됨",
+            font=self.font_subtitle
         )
-        self.paste_status_label.pack(anchor="w", padx=10, pady=(0, 8))
+        self.paste_status_label.pack(pady=(0, 15))
 
     def create_right_frame(self):
         """오른쪽 프레임 (로그)을 생성"""
@@ -315,7 +297,7 @@ class App(customtkinter.CTk):
         """실제 자동화 로직을 실행합니다."""
         try:
             total_items = len(data_list)
-            self.add_log(f"총 {total_items}개 항목을 처리합니다. Tab 횟수: {tab_count}")
+            self.add_log(f"총 {total_items}개 항목의 스마트 붙여넣기를 시작합니다.")
             
             # 5초 카운트다운 (나이스로 이동할 시간 제공)
             for i in range(5, 0, -1):
