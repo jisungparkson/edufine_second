@@ -101,87 +101,116 @@ class App(customtkinter.CTk):
         # 제목
         paste_title = customtkinter.CTkLabel(
             self.middle_frame,
-            text="스마트 붙여넣기",
+            text="📋 스마트 붙여넣기",
             font=self.font_paste_title,
             text_color="#1f538d"
         )
         paste_title.pack(pady=(15, 10), padx=10)
 
-        # 내용 입력 라벨
-        content_label = customtkinter.CTkLabel(
-            self.middle_frame,
-            text="붙여넣을 내용 (한 줄에 하나씩):",
-            font=self.font_subtitle
-        )
-        content_label.pack(anchor="w", padx=15, pady=(5, 5))
+        # 사용법 가이드 프레임
+        guide_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8, fg_color="#f0f8ff")
+        guide_frame.pack(fill="x", padx=15, pady=(0, 15))
 
-        # 내용 입력 텍스트박스
-        self.paste_textbox = customtkinter.CTkTextbox(
-            self.middle_frame,
-            height=250,
-            font=self.font_log,
-            corner_radius=8
+        guide_title = customtkinter.CTkLabel(
+            guide_frame,
+            text="✨ 사용법 (4단계)",
+            font=customtkinter.CTkFont(family="맑은 고딕", size=14, weight="bold"),
+            text_color="#2c5282"
         )
-        self.paste_textbox.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+        guide_title.pack(pady=(10, 5), padx=10)
 
-        # 설정 프레임 (내문 아래)
+        guide_steps = [
+            "1️⃣ 엑셀/한글에서 입력할 내용을 모두 복사 (Ctrl+C)",
+            "2️⃣ 아래에서 '입력 항목'을 선택하세요",
+            "3️⃣ '자동 입력 시작' 버튼을 클릭하세요",
+            "4️⃣ 5초 안에 나이스 화면으로 돌아가 입력칸을 클릭하세요"
+        ]
+
+        for step in guide_steps:
+            step_label = customtkinter.CTkLabel(
+                guide_frame,
+                text=step,
+                font=customtkinter.CTkFont(family="맑은 고딕", size=11),
+                text_color="#2d3748",
+                anchor="w"
+            )
+            step_label.pack(anchor="w", padx=15, pady=2)
+
+        guide_frame.pack(pady=(0, 5))
+
+        # 설정 프레임
         settings_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
         settings_frame.pack(fill="x", padx=15, pady=(0, 10))
 
         # 항목 선택 라벨
         mode_label = customtkinter.CTkLabel(
             settings_frame,
-            text="입력 항목 선택:",
-            font=self.font_subtitle
+            text="📝 입력 항목 선택:",
+            font=customtkinter.CTkFont(family="맑은 고딕", size=13, weight="bold")
         )
-        mode_label.pack(anchor="w", padx=10, pady=(10, 5))
+        mode_label.pack(anchor="w", padx=10, pady=(15, 5))
 
         # 항목 선택 콤보박스
         self.mode_combobox = customtkinter.CTkComboBox(
             settings_frame,
             values=list(self.INPUT_MODES.keys()),
             font=self.font_subtitle,
-            state="readonly"
+            state="readonly",
+            height=35
         )
-        self.mode_combobox.pack(fill="x", padx=10, pady=(0, 10))
+        self.mode_combobox.pack(fill="x", padx=10, pady=(0, 15))
         self.mode_combobox.set(list(self.INPUT_MODES.keys())[0])  # 첫 번째 항목으로 기본 선택
 
         # 버튼 프레임
         button_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8)
-        button_frame.pack(fill="x", padx=15, pady=(0, 10))
+        button_frame.pack(fill="x", padx=15, pady=(0, 15))
 
         # 자동 입력 시작 버튼
         self.start_paste_button = customtkinter.CTkButton(
             button_frame,
-            text="자동 입력 시작",
+            text="🚀 자동 입력 시작",
             command=self.start_paste_automation,
-            font=self.font_button,
-            height=40,
-            corner_radius=8
+            font=customtkinter.CTkFont(family="맑은 고딕", size=16, weight="bold"),
+            height=50,
+            corner_radius=10,
+            fg_color="#4CAF50",
+            hover_color="#45a049"
         )
         self.start_paste_button.pack(side="left", fill="x", expand=True, padx=(10, 5), pady=10)
 
         # 중단 버튼
         self.stop_paste_button = customtkinter.CTkButton(
             button_frame,
-            text="중단",
+            text="⏹️ 중단",
             command=self.stop_paste_automation,
-            font=self.font_button,
-            height=40,
-            corner_radius=8,
-            fg_color="red",
-            hover_color="darkred",
+            font=customtkinter.CTkFont(family="맑은 고딕", size=14, weight="bold"),
+            height=50,
+            corner_radius=10,
+            fg_color="#f44336",
+            hover_color="#d32f2f",
             state="disabled"
         )
         self.stop_paste_button.pack(side="right", fill="x", expand=True, padx=(5, 10), pady=10)
 
-        # 상태 라벨
-        self.paste_status_label = customtkinter.CTkLabel(
-            self.middle_frame,
-            text="준비됨",
-            font=self.font_subtitle
+        # 상태 표시 프레임
+        status_frame = customtkinter.CTkFrame(self.middle_frame, corner_radius=8, fg_color="#e8f5e8")
+        status_frame.pack(fill="x", padx=15, pady=(0, 15))
+
+        status_title = customtkinter.CTkLabel(
+            status_frame,
+            text="📊 현재 상태:",
+            font=customtkinter.CTkFont(family="맑은 고딕", size=12, weight="bold"),
+            text_color="#2e7d32"
         )
-        self.paste_status_label.pack(pady=(0, 15))
+        status_title.pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.paste_status_label = customtkinter.CTkLabel(
+            status_frame,
+            text="✅ 준비됨 - 클립보드에 내용을 복사하고 시작하세요",
+            font=customtkinter.CTkFont(family="맑은 고딕", size=12),
+            text_color="#2e7d32"
+        )
+        self.paste_status_label.pack(anchor="w", padx=10, pady=(0, 8))
 
     def create_right_frame(self):
         """오른쪽 프레임 (로그)을 생성"""
@@ -288,11 +317,11 @@ class App(customtkinter.CTk):
             total_items = len(data_list)
             self.add_log(f"총 {total_items}개 항목을 처리합니다. Tab 횟수: {tab_count}")
             
-            # 3초 카운트다운
-            for i in range(3, 0, -1):
+            # 5초 카운트다운 (나이스로 이동할 시간 제공)
+            for i in range(5, 0, -1):
                 if self.stop_automation:
                     return
-                self.update_paste_status(f"{i}초 후 시작...")
+                self.update_paste_status(f"나이스 화면으로 이동하세요! {i}초 후 시작...")
                 time.sleep(1)
             
             if self.stop_automation:
@@ -333,9 +362,9 @@ class App(customtkinter.CTk):
                 self.add_log(f"[{idx}/{total_items}] 처리 완료: {data[:30]}{'...' if len(data) > 30 else ''}")
             
             if not self.stop_automation:
-                self.update_paste_status("완료!")
+                self.update_paste_status("모든 입력이 완료되었습니다!")
                 self.add_log("스마트 붙여넣기가 모두 완료되었습니다.")
-                self.after(3000, lambda: self.update_paste_status("준비됨"))
+                self.after(3000, lambda: self.update_paste_status("준비됨 - 다음 작업을 위해 새로운 내용을 복사하세요"))
             else:
                 self.update_paste_status("중지됨")
                 self.add_log("스마트 붙여넣기가 중지되었습니다.")
@@ -351,7 +380,30 @@ class App(customtkinter.CTk):
 
     def update_paste_status(self, message):
         """붙여넣기 상태 라벨을 업데이트합니다."""
-        self.after(0, lambda: self.paste_status_label.configure(text=message))
+        # 상태에 따른 아이콘과 색상 설정
+        if "준비됨" in message:
+            icon_message = f"✅ {message}"
+            color = "#2e7d32"
+        elif "시작" in message or "카운트다운" in message or "후 시작" in message:
+            icon_message = f"⏰ {message}"
+            color = "#f57c00"
+        elif "진행 중" in message:
+            icon_message = f"🔄 {message}"
+            color = "#1976d2"
+        elif "완료" in message:
+            icon_message = f"🎉 {message}"
+            color = "#388e3c"
+        elif "중지" in message:
+            icon_message = f"⏸️ {message}"
+            color = "#d32f2f"
+        elif "오류" in message:
+            icon_message = f"❌ {message}"
+            color = "#d32f2f"
+        else:
+            icon_message = f"📝 {message}"
+            color = "#424242"
+        
+        self.after(0, lambda: self.paste_status_label.configure(text=icon_message, text_color=color))
 
     def reset_paste_buttons(self):
         """붙여넣기 버튼 상태를 초기 상태로 돌립니다."""
