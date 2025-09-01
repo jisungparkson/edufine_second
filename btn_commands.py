@@ -121,33 +121,25 @@ def _wait_for_login_success(page: Page):
     print("로그인 완료 확인됨")
 
 def open_eduptl():
-    """업무포털 페이지 접속, 로그인 및 팝업 처리"""
+    """
+    업무포털 '로그인' 페이지로 직접 이동합니다.
+    자동으로 로그인을 수행하지는 않습니다.
+    """
     try:
         page = browser_manager.get_page()
+        page.bring_to_front() # 창을 맨 앞으로 가져옵니다.
         
-        # 이미 업무포털에 로그인되어 있는지 확인
-        if '업무포털' in page.title() and not page.url.endswith('lg00_001.do'):
-            page.bring_to_front()
-            return
-            
-        page.goto(urls['업무포털 메인'])
+        print("업무포털 로그인 페이지로 직접 이동합니다...")
         
-        # 서비스 중단 안내 팝업 처리 (새로 추가된 부분)
-        try:
-            popup_layer = page.locator('div#popupslider')
-            popup_layer.wait_for(state='visible', timeout=5000)
-            close_button = page.locator('button.btn-x')
-            close_button.click()
-            print("서비스 중단 안내 팝업을 닫았습니다.")
-        except TimeoutError:
-            print("서비스 중단 팝업이 나타나지 않았거나 시간 내에 찾지 못해 넘어갑니다.")
+        # '업무포털 로그인' URL로 직접 이동하도록 수정
+        page.goto(urls['업무포털 로그인'])
         
-        if urls['업무포털 로그인'] in page.url:
-            login(page)
-            _wait_for_login_success(page)
-
+        # 페이지 로딩이 완료될 때까지 기다립니다.
+        page.wait_for_load_state('networkidle')
+        print("로그인 페이지 로딩 완료.")
+        
     except Exception as e:
-        _handle_error(e)
+        _handle_error(e) # 오류 발생 시 처리
 
 def do_login_only():
     """
