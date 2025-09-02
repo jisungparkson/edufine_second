@@ -124,8 +124,6 @@ def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
         with portal_page.expect_popup() as popup_info:
             if target_service == "나이스":
                 service_link = portal_page.get_by_role("link", name="나이스", exact=True).first
-            elif target_service == "에듀파인":
-                service_link = portal_page.get_by_role("link", name="K-에듀파인", exact=True).first
             else:
                 raise ValueError(f"지원하지 않는 서비스: {target_service}")
             
@@ -145,8 +143,6 @@ def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
 def _navigate_to_neis(app_instance) -> Page:
     return _ensure_valid_session_and_navigate(app_instance, "나이스")
 
-def _navigate_to_edufine(app_instance) -> Page:
-    return _ensure_valid_session_and_navigate(app_instance, "에듀파인")
 
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
