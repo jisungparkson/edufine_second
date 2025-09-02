@@ -96,7 +96,7 @@ def _navigate_to_neis(app_instance) -> Page:
 
         # 3. 만약 현재 페이지가 로그인 페이지라면, 사용자가 로그인할 때까지 기다린다.
         if urls['업무포털 로그인'] in portal_page.url:
-            app_instance.after(0, lambda: messagebox.showinfo("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, '확인' 버튼을 눌러주세요."))
+            messagebox.showinfo("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, '확인' 버튼을 눌러주세요.")
             portal_page.wait_for_url(lambda url: urls['업무포털 로그인'] not in url, timeout=120000)
             app_instance.add_log("사용자 로그인을 감지했습니다.")
 
