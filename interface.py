@@ -233,8 +233,8 @@ class App(customtkinter.CTk):
     def create_automation_buttons(self):
         """자동화 작업 버튼들을 생성하는 함수"""
         button_configs = [
-            {"text": "업무포털 접속", "command": self.run_open_eduptl},
-            {"text": "업무포털 자동 로그인", "command": self.run_do_login_only},
+            {"text": "브라우저 열기 (수동 로그인용)", "command": self.run_open_eduptl},
+            {"text": "업무포털 자동 로그인 (권장)", "command": self.run_do_login_only},
             {"text": "나이스 출결 바로가기", "command": self.run_neis_attendace},
             {"text": "행동특성 및 종합의견 입력", "command": self.run_neis_haengteuk},
             {"text": "학기말 종합의견 (담임)", "command": self.run_neis_hakjjong},

@@ -251,7 +251,59 @@ def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
         return None
 
 def _navigate_to_neis(app_instance) -> Page:
-    return _ensure_valid_session_and_navigate(app_instance, "나이스")
+    """
+    상태 감지 및 사용자 안내 중심의 나이스 이동 함수
+    수동/자동 로그인 상태를 지능적으로 판단하여 적절한 안내 제공
+    """
+    try:
+        app_instance.add_log("나이스 페이지 접근을 시작합니다...")
+        
+        # 1단계: 이미 열린 나이스 탭 검색
+        if browser_manager.browser and browser_manager.browser.is_connected():
+            for context in browser_manager.browser.contexts:
+                for page in context.pages:
+                    if "neis.go.kr" in page.url and not page.is_closed():
+                        app_instance.add_log("이미 열려있는 나이스 탭을 발견했습니다.")
+                        page.bring_to_front()
+                        browser_manager.page = page
+                        return page
+        
+        # 2단계: 상태 판단 - 업무포털 메인 페이지 확인 (수동 로그인 판단)
+        portal_page = browser_manager.get_page()
+        current_url = portal_page.url
+        app_instance.add_log(f"현재 페이지 URL: {current_url}")
+        
+        # 3단계 & 4단계: 수동 로그인 상태일 경우 사용자 안내 및 대기
+        if 'bpm_man_mn00_001.do' in current_url:
+            app_instance.add_log("수동 로그인 상태 감지. 사용자에게 나이스 직접 클릭을 요청합니다.")
+            messagebox.showinfo("다음 단계 안내", 
+                               "수동으로 로그인하셨습니다.\n\n"
+                               "1. 웹 화면에서 직접 [나이스] 링크를 클릭하세요.\n"
+                               "2. 새 탭으로 나이스가 열리면, 이 창의 [확인] 버튼을 누르세요.")
+            
+            # 사용자가 나이스 탭을 열 때까지 기다림
+            app_instance.add_log("사용자가 나이스 탭을 여는 것을 기다립니다...")
+            with browser_manager.browser.expect_page() as new_page_info:
+                pass  # 사용자의 클릭을 기다림
+            
+            neis_page = new_page_info.value
+            neis_page.wait_for_load_state("networkidle")
+            browser_manager.page = neis_page
+            app_instance.add_log("사용자가 연 '나이스' 탭으로 제어권을 전환했습니다.")
+            return neis_page
+        
+        # 5단계: 다른 페이지에 있는 경우 (로그인 페이지이거나 기타 상황)
+        else:
+            app_instance.add_log("업무포털 메인 페이지가 아닙니다. 먼저 로그인이 필요할 수 있습니다.")
+            messagebox.showinfo("로그인 안내", 
+                               "나이스 접근을 위해서는 먼저 업무포털 로그인이 필요합니다.\n\n"
+                               "1. '업무포털 자동 로그인 (권장)' 버튼을 클릭하거나\n"
+                               "2. '브라우저 열기 (수동 로그인용)' 버튼으로 직접 로그인하세요.")
+            return None
+            
+    except Exception as e:
+        _handle_error(e, app_instance)
+        return None
 
 
 def _wait_for_login_success(page: Page):
@@ -366,6 +418,8 @@ def neis_attendace(app_instance):
     """나이스 출결관리 메뉴로 이동"""
     try:
         page = _navigate_to_neis(app_instance)
+        if not page:
+            return
         
         neis_go_menu(page, '학급담임', '학적', '출결관리', '출결관리')
         neis_click_btn(page, '조회')
@@ -378,6 +432,8 @@ def neis_haengteuk(app_instance):
     """행동특성 및 종합의견 입력"""
     try:
         page = _navigate_to_neis(app_instance)
+        if not page:
+            return
 
         data = get_excel_data()
         if data is None:
@@ -407,6 +463,8 @@ def neis_hakjjong(app_instance):
     """학기말 종합의견(담임) 메뉴로 이동"""
     try:
         page = _navigate_to_neis(app_instance)
+        if not page:
+            return
         
         neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
         app_instance.add_log("학기말 종합의견(담임) 메뉴로 이동했습니다.")
@@ -418,6 +476,8 @@ def neis_class_hakjjong(app_instance):
     """학기말 종합의견(교과) 메뉴로 이동"""
     try:
         page = _navigate_to_neis(app_instance)
+        if not page:
+            return
         
         neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
         app_instance.add_log("학기말 종합의견(교과) 메뉴로 이동했습니다.")
