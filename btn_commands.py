@@ -92,16 +92,17 @@ def _navigate_to_neis(app_instance) -> Page:
 
     # 2. 만약 현재 페이지가 로그인 페이지라면, 사용자가 로그인할 때까지 기다려야 합니다.
     if urls['업무포털 로그인'] in portal_page.url:
-        messagebox.showwarning("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, 이 창의 '확인' 버튼을 눌러주세요.")
+        app_instance.add_log("업무포털 로그인이 필요합니다. 브라우저에서 로그인을 완료해주세요.")
+        app_instance.after(0, lambda: messagebox.showinfo("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, 이 창의 '확인' 버튼을 눌러주세요."))
         
         # 사용자가 로그인을 완료하고 URL이 바뀔 때까지 대기합니다.
         portal_page.wait_for_url(lambda url: urls['업무포털 로그인'] not in url, timeout=120000) # 2분 대기
-        print("로그인 완료를 감지했습니다.")
+        app_instance.add_log("사용자 로그인을 감지했습니다. 다음 단계를 진행합니다.")
     
     # 3. 이 시점에는 사용자가 반드시 로그인 후 메인 페이지에 있어야 합니다.
     #    이제 '나이스' 링크를 클릭합니다.
     with portal_page.expect_popup() as popup_info:
-        print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
+        app_instance.add_log("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
         
         # '나이스' 링크가 나타날 때까지 최대 10초 대기 (안정성 추가)
         neis_link = portal_page.get_by_role("link", name="나이스", exact=True).first
@@ -110,10 +111,11 @@ def _navigate_to_neis(app_instance) -> Page:
     # --- [핵심 수정 부분 끝] ---
     
     neis_page = popup_info.value
-    print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
+    app_instance.add_log("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
     
     neis_page.wait_for_load_state("networkidle")
     browser_manager.page = neis_page # 프로그램의 기억을 '나이스' 페이지로 업데이트
+    app_instance.add_log("나이스 페이지 로딩이 완료되었습니다.")
     
     return neis_page
 
