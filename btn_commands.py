@@ -66,27 +66,55 @@ class BrowserManager:
 # 단 하나의 현장 감독 인스턴스 생성
 browser_manager = BrowserManager()
 
-def _handle_error(e):
-    """오류 처리 시, 현장 감독을 통해 안전하게 모든 것을 종료합니다."""
+def _handle_error(e, app_instance):
+    """오류 처리 시, App 인스턴스를 통해 안전하게 UI에 보고합니다."""
     error_message = f"{type(e).__name__}: {e}"
-    messagebox.showerror("오류 발생", error_message)
+    
+    # 이제 messagebox를 직접 호출하지 않습니다.
+    # 대신, App의 로그 기능과 메시지 박스 기능을 안전하게 호출합니다.
+    if app_instance:
+        app_instance.add_log(f"오류 발생: {error_message}")
+        app_instance.after(0, lambda: messagebox.showerror("오류 발생", error_message))
+    
     browser_manager.close()
 
-def _navigate_to_neis() -> Page:
-    """업무포털에 로그인하고, '나이스' 버튼을 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다."""
+def _navigate_to_neis(app_instance) -> Page:
+    """
+    업무포털에 로그인하고, '나이스' 링크를 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다.
+    수동 로그인을 포함한 모든 시나리오에 대응하도록 수정되었습니다.
+    """
     print("업무포털에 접속하여 나이스로 이동을 시작합니다.")
-    open_eduptl()
-    portal_page = browser_manager.get_page()
     
+    # --- [핵심 수정 부분 시작] ---
+    # 1. 현재 프로그램이 기억하는 페이지를 가져옵니다.
+    portal_page = browser_manager.get_page()
+    portal_page.bring_to_front()
+
+    # 2. 만약 현재 페이지가 로그인 페이지라면, 사용자가 로그인할 때까지 기다려야 합니다.
+    if urls['업무포털 로그인'] in portal_page.url:
+        messagebox.showwarning("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, 이 창의 '확인' 버튼을 눌러주세요.")
+        
+        # 사용자가 로그인을 완료하고 URL이 바뀔 때까지 대기합니다.
+        portal_page.wait_for_url(lambda url: urls['업무포털 로그인'] not in url, timeout=120000) # 2분 대기
+        print("로그인 완료를 감지했습니다.")
+    
+    # 3. 이 시점에는 사용자가 반드시 로그인 후 메인 페이지에 있어야 합니다.
+    #    이제 '나이스' 링크를 클릭합니다.
     with portal_page.expect_popup() as popup_info:
         print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
-        # '나이스' 링크가 여러 개 발견되었으므로, 그 중 첫 번째 것을 클릭하도록 .first를 추가합니다.
-        portal_page.get_by_role("link", name="나이스", exact=True).first.click()
+        
+        # '나이스' 링크가 나타날 때까지 최대 10초 대기 (안정성 추가)
+        neis_link = portal_page.get_by_role("link", name="나이스", exact=True).first
+        neis_link.wait_for(state="visible", timeout=10000)
+        neis_link.click()
+    # --- [핵심 수정 부분 끝] ---
     
     neis_page = popup_info.value
     print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
+    
     neis_page.wait_for_load_state("networkidle")
-    browser_manager.page = neis_page
+    browser_manager.page = neis_page # 프로그램의 기억을 '나이스' 페이지로 업데이트
+    
     return neis_page
 
 def _wait_for_login_success(page: Page):
@@ -120,7 +148,7 @@ def _wait_for_login_success(page: Page):
     
     print("로그인 완료 확인됨")
 
-def open_eduptl():
+def open_eduptl(app_instance):
     """
     업무포털 '로그인' 페이지로 직접 이동합니다.
     자동으로 로그인을 수행하지는 않습니다.
@@ -139,9 +167,9 @@ def open_eduptl():
         print("로그인 페이지 로딩 완료.")
         
     except Exception as e:
-        _handle_error(e) # 오류 발생 시 처리
+        _handle_error(e, app_instance) # 오류 발생 시 처리
 
-def do_login_only():
+def do_login_only(app_instance):
     """
     현재 어느 페이지에 있든, 업무포털 로그인 화면으로 이동하여 로그인을 수행합니다.
     """
@@ -192,23 +220,23 @@ def do_login_only():
         messagebox.showinfo("성공", "로그인이 완료되었습니다.")
 
     except Exception as e:
-        _handle_error(e)
+        _handle_error(e, app_instance)
 
-def neis_attendace():
+def neis_attendace(app_instance):
     """나이스 출결관리 메뉴로 이동"""
     try:
-        page = _navigate_to_neis()
+        page = _navigate_to_neis(app_instance)
         
         neis_go_menu(page, '학급담임', '학적', '출결관리', '출결관리')
         neis_click_btn(page, '조회')
         messagebox.showinfo("완료", "나이스 출결관리 메뉴로 이동하여 조회를 클릭했습니다.")
     except Exception as e:
-        _handle_error(e)
+        _handle_error(e, app_instance)
 
-def neis_haengteuk():
+def neis_haengteuk(app_instance):
     """행동특성 및 종합의견 입력"""
     try:
-        page = _navigate_to_neis()
+        page = _navigate_to_neis(app_instance)
 
         data = get_excel_data()
         if data is None:
@@ -229,24 +257,24 @@ def neis_haengteuk():
         neis_click_btn(page, '저장')
         messagebox.showinfo("완료", "행동특성 및 종합의견 입력 및 저장을 완료했습니다.")
     except Exception as e:
-        _handle_error(e)
+        _handle_error(e, app_instance)
 
-def neis_hakjjong():
+def neis_hakjjong(app_instance):
     """학기말 종합의견(담임) 메뉴로 이동"""
     try:
-        page = _navigate_to_neis()
+        page = _navigate_to_neis(app_instance)
         
         neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
         messagebox.showinfo("완료", "학기말 종합의견(담임) 메뉴로 이동했습니다.")
     except Exception as e:
-        _handle_error(e)
+        _handle_error(e, app_instance)
 
-def neis_class_hakjjong():
+def neis_class_hakjjong(app_instance):
     """학기말 종합의견(교과) 메뉴로 이동"""
     try:
-        page = _navigate_to_neis()
+        page = _navigate_to_neis(app_instance)
              
         neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
         messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
     except Exception as e:
-        _handle_error(e)
+        _handle_error(e, app_instance)
