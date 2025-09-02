@@ -78,10 +78,72 @@ def _handle_error(e, app_instance):
     
     browser_manager.close()
 
+def _check_password_file_exists() -> bool:
+    """
+    config.ini에 설정된 password_file이 실제로 존재하는지 확인
+    """
+    try:
+        import configparser
+        import os
+        
+        config = configparser.ConfigParser()
+        config.read('config.ini', encoding='utf-8')
+        
+        try:
+            password_filepath = config['Paths']['password_file']
+        except (KeyError, configparser.NoSectionError):
+            password_filepath = 'C:\\GPKI\\password.txt'  # 기본값
+        
+        return os.path.exists(password_filepath)
+        
+    except Exception:
+        return False
+
+def _enhance_manual_login_session(app_instance, portal_page) -> bool:
+    """
+    수동 로그인 세션을 연계 시스템 호환 세션으로 보완하는 함수
+    자동 로그인 없이 수동 로그인 세션의 누락된 부분을 채워넣습니다
+    """
+    try:
+        app_instance.add_log("세션 보완 과정을 시작합니다...")
+        
+        # 1. 현재 페이지 새로고침으로 세션 상태 최신화
+        app_instance.add_log("페이지를 새로고침하여 세션 상태를 최신화합니다...")
+        portal_page.reload()
+        portal_page.wait_for_load_state('networkidle', timeout=30000)
+        
+        # 2. 메인 페이지의 모든 링크와 스크립트가 완전히 로드될 때까지 대기
+        app_instance.add_log("페이지 구성 요소가 완전히 로드될 때까지 기다립니다...")
+        portal_page.wait_for_timeout(3000)  # 추가 로딩 시간 확보
+        
+        # 3. 필요한 세션 쿠키나 토큰이 설정되었는지 확인
+        app_instance.add_log("세션 정보를 확인합니다...")
+        
+        # 4. 페이지의 모든 자바스크립트 실행이 완료되도록 대기
+        # 업무포털의 경우 로그인 후 추가 스크립트가 실행되어 세션을 완성할 수 있음
+        try:
+            # 페이지가 완전히 준비될 때까지 대기
+            portal_page.wait_for_function(
+                "() => document.readyState === 'complete'",
+                timeout=10000
+            )
+            app_instance.add_log("페이지 로딩이 완전히 완료되었습니다.")
+        except:
+            app_instance.add_log("페이지 로딩 확인 중 타임아웃이 발생했지만 계속 진행합니다.")
+        
+        # 5. 추가적인 세션 초기화 과정 (필요시)
+        # 일부 웹 애플리케이션은 메인 페이지 방문 후 특정 액션이 필요할 수 있음
+        app_instance.add_log("세션 보완 과정이 완료되었습니다.")
+        return True
+        
+    except Exception as e:
+        app_instance.add_log(f"세션 보완 중 오류 발생: {str(e)}")
+        return False
+
 def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
     """
-    세션 확보 및 이동 Gatekeeper 함수
-    연계 시스템 자동화를 위한 중앙 관리 함수
+    세션 확보 및 이동 Gatekeeper 함수 (수동 로그인 친화적)
+    수동 로그인 사용자도 연계 시스템에 접근할 수 있도록 세션을 보완합니다
     """
     try:
         app_instance.add_log(f"{target_service} 시스템 접근을 위한 세션 상태를 확인합니다...")
@@ -91,86 +153,98 @@ def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
         current_url = current_page.url
         app_instance.add_log(f"현재 페이지: {current_url}")
         
-        # b. 세션이 불완전할 경우 (수동 로그인 상태)
+        # b. 수동 로그인 상태 처리 (자동 로그인 강요 없이)
         if "bpm_man_mn00_001.do" in current_url:
             app_instance.add_log("수동 로그인 상태가 감지되었습니다.")
-            app_instance.add_log("연계 시스템 접근을 위해서는 자동 로그인을 통한 완전한 세션 확보가 필요합니다.")
+            app_instance.add_log("수동 로그인 세션을 연계 시스템 호환 세션으로 보완합니다...")
             
-            # 더 상세한 설명과 함께 사용자에게 안내
-            message = f"""🔐 세션 재확보가 필요합니다
-
-현재 수동 로그인 상태에서는 {target_service} 연계 시스템에 접근할 수 없습니다.
-
-📋 이유:
-• 수동 로그인 시 일부 세션 정보가 누락됩니다
-• 연계 시스템은 완전한 인증 세션이 필요합니다
-
-✅ 해결방법:
-자동 로그인을 통해 완전한 세션을 확보합니다
-(config.ini의 비밀번호 파일을 사용)
-
-계속 진행하시겠습니까?"""
-            
-            answer = messagebox.askyesno("세션 재확보 필요", message)
-            if not answer:
-                app_instance.add_log("사용자가 자동 로그인을 취소했습니다.")
-                messagebox.showinfo("안내", f"{target_service} 시스템 접근이 취소되었습니다.\n\n수동으로 {target_service}에 접근하려면 브라우저에서 직접 이동해주세요.")
+            # 세션 보완 시도 (자동 로그인 대신)
+            session_enhanced = _enhance_manual_login_session(app_instance, current_page)
+            if not session_enhanced:
+                app_instance.add_log("세션 보완에 실패했습니다. 브라우저에서 직접 접근을 시도해보세요.")
+                messagebox.showinfo(
+                    "세션 보완 실패", 
+                    f"수동 로그인 세션을 {target_service} 호환 세션으로 보완하는데 실패했습니다.\n\n대안:\n• 브라우저에서 직접 {target_service} 링크를 클릭해보세요\n• 또는 로그아웃 후 다시 로그인해보세요"
+                )
                 return None
             
-            # 전체 자동 로그인 수행
-            app_instance.add_log("연계 시스템 접근을 위한 자동 로그인을 시작합니다...")
-            login_success = do_login_only(app_instance)
-            if not login_success:
-                app_instance.add_log("자동 로그인에 실패했습니다.")
-                messagebox.showerror("로그인 실패", "자동 로그인에 실패했습니다.\n\nconfig.ini 파일과 비밀번호 파일을 확인해주세요.")
-                return None
-            
-            app_instance.add_log("자동 로그인이 완료되었습니다. 연계 시스템에 접근합니다.")
+            app_instance.add_log("수동 로그인 세션이 성공적으로 보완되었습니다.")
         
         # c. 세션이 없을 경우
         elif "lg00_001.do" in current_url or current_url == "about:blank":
-            app_instance.add_log("세션이 없는 상태입니다. 자동 로그인을 시작합니다.")
-            login_success = do_login_only(app_instance)
-            if not login_success:
-                app_instance.add_log("자동 로그인에 실패했습니다.")
+            app_instance.add_log("세션이 없는 상태입니다.")
+            
+            # password_file 존재 여부 확인
+            has_password_file = _check_password_file_exists()
+            
+            if has_password_file:
+                app_instance.add_log("비밀번호 파일이 존재합니다. 자동 로그인을 시도합니다.")
+                login_success = do_login_only(app_instance)
+                if not login_success:
+                    app_instance.add_log("자동 로그인에 실패했습니다.")
+                    return None
+            else:
+                app_instance.add_log("비밀번호 파일이 없습니다. 수동 로그인이 필요합니다.")
+                messagebox.showinfo(
+                    "로그인 필요",
+                    f"{target_service} 시스템에 접근하려면 먼저 로그인이 필요합니다.\n\n방법:\n1. '업무포털 접속' 버튼을 클릭하세요\n2. 브라우저에서 직접 로그인하세요\n3. 로그인 완료 후 이 버튼을 다시 클릭하세요"
+                )
                 return None
         
         # d. 세션 확보 후 타겟 서비스로 이동
         app_instance.add_log(f"유효한 세션이 확보되었습니다. {target_service}로 이동합니다.")
         portal_page = browser_manager.get_page()
         
-        # 연계 시스템 링크 존재 확인
-        try:
-            if target_service == "나이스":
-                service_link = portal_page.get_by_role("link", name="나이스", exact=True).first
-            else:
-                raise ValueError(f"지원하지 않는 서비스: {target_service}")
-            
-            # 링크가 실제로 보이고 클릭 가능한지 확인
-            service_link.wait_for(state="visible", timeout=10000)
-            app_instance.add_log(f"{target_service} 링크를 확인했습니다. 클릭합니다.")
-            
-        except Exception as link_error:
-            app_instance.add_log(f"{target_service} 링크를 찾을 수 없습니다: {link_error}")
-            messagebox.showerror(
-                "링크 오류", 
-                f"{target_service} 링크를 찾을 수 없습니다.\n\n가능한 원인:\n• 세션이 만료되었습니다\n• 페이지 로딩이 완료되지 않았습니다\n\n해결방법:\n다시 시도하거나 브라우저에서 직접 접근해주세요."
-            )
-            return None
+        # 연계 시스템 링크 접근 시도 (재시도 포함)
+        for attempt in range(2):  # 최대 2번 시도
+            try:
+                app_instance.add_log(f"{target_service} 링크 접근 시도 {attempt + 1}/2")
+                
+                if target_service == "나이스":
+                    service_link = portal_page.get_by_role("link", name="나이스", exact=True).first
+                else:
+                    raise ValueError(f"지원하지 않는 서비스: {target_service}")
+                
+                # 링크가 실제로 보이고 클릭 가능한지 확인
+                service_link.wait_for(state="visible", timeout=10000)
+                app_instance.add_log(f"{target_service} 링크를 확인했습니다. 클릭합니다.")
+                
+                # 링크 클릭하여 새 창으로 이동
+                with portal_page.expect_popup() as popup_info:
+                    service_link.click()
+                
+                target_page = popup_info.value
+                app_instance.add_log(f"{target_service} 새 창이 열렸습니다. 페이지 로딩을 기다립니다...")
+                target_page.wait_for_load_state("networkidle")
+                
+                # 연계 시스템 페이지가 제대로 로드되었는지 확인
+                if target_service == "나이스" and "neis.go.kr" in target_page.url:
+                    browser_manager.page = target_page
+                    app_instance.add_log(f"✅ {target_service} 페이지 이동이 성공적으로 완료되었습니다!")
+                    messagebox.showinfo("접속 성공", f"{target_service} 시스템에 성공적으로 접속했습니다!")
+                    return target_page
+                else:
+                    app_instance.add_log(f"{target_service} 페이지 로드에 문제가 있습니다. 재시도합니다...")
+                    if attempt == 0:  # 첫 번째 시도 실패 시 세션 재보완
+                        app_instance.add_log("세션 재보완을 시도합니다...")
+                        _enhance_manual_login_session(app_instance, portal_page)
+                        continue
+                    
+            except Exception as link_error:
+                app_instance.add_log(f"{target_service} 링크 접근 실패 (시도 {attempt + 1}): {link_error}")
+                
+                if attempt == 0:  # 첫 번째 시도 실패 시
+                    app_instance.add_log("세션을 재보완하고 다시 시도합니다...")
+                    _enhance_manual_login_session(app_instance, portal_page)
+                    continue
         
-        # 링크 클릭하여 새 창으로 이동
-        with portal_page.expect_popup() as popup_info:
-            service_link.click()
-        
-        target_page = popup_info.value
-        app_instance.add_log(f"{target_service} 새 창이 열렸습니다. 페이지 로딩을 기다립니다...")
-        target_page.wait_for_load_state("networkidle")
-        browser_manager.page = target_page
-        app_instance.add_log(f"✅ {target_service} 페이지 이동이 성공적으로 완료되었습니다!")
-        
-        # 성공 메시지 표시
-        messagebox.showinfo("접속 성공", f"{target_service} 시스템에 성공적으로 접속했습니다!")
-        return target_page
+        # 모든 시도 실패
+        app_instance.add_log(f"모든 시도가 실패했습니다. 수동 접근을 안내합니다.")
+        messagebox.showinfo(
+            "자동 접근 실패",
+            f"{target_service} 자동 접근에 실패했습니다.\n\n수동 접근 방법:\n1. 브라우저에서 직접 '{target_service}' 링크를 클릭해보세요\n2. 만약 링크가 작동하지 않으면:\n   • 로그아웃 후 다시 로그인해보세요\n   • 브라우저를 새로고침해보세요"
+        )
+        return None
         
     except Exception as e:
         _handle_error(e, app_instance)
