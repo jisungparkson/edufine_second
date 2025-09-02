@@ -272,7 +272,7 @@ def neis_haengteuk(app_instance):
         data = get_excel_data()
         if data is None:
             app_instance.add_log("엑셀 파일을 선택하지 않아 작업을 취소합니다.")
-        app_instance.after(0, lambda: messagebox.showwarning("취소", "엑셀 파일을 선택하지 않아 작업을 취소합니다."))
+            app_instance.after(0, lambda: messagebox.showwarning("취소", "엑셀 파일을 선택하지 않아 작업을 취소합니다."))
             return
 
         neis_go_menu(page, '학급담임', '학생생활', '행동특성및종합의견', '행동특성및종합의견')
@@ -314,5 +314,3 @@ def neis_class_hakjjong(app_instance):
         app_instance.after(0, lambda: messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다."))
     except Exception as e:
         _handle_error(e, app_instance)
-
-
