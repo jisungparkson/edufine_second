@@ -94,20 +94,38 @@ def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
         # b. 세션이 불완전할 경우 (수동 로그인 상태)
         if "bpm_man_mn00_001.do" in current_url:
             app_instance.add_log("수동 로그인 상태가 감지되었습니다.")
-            answer = messagebox.askyesno(
-                "세션 재확보 필요", 
-                f"{target_service} 연계 시스템 자동화를 위해 전체 자동 로그인을 다시 수행해야 합니다.\n\n계속하시겠습니까?"
-            )
+            app_instance.add_log("연계 시스템 접근을 위해서는 자동 로그인을 통한 완전한 세션 확보가 필요합니다.")
+            
+            # 더 상세한 설명과 함께 사용자에게 안내
+            message = f"""🔐 세션 재확보가 필요합니다
+
+현재 수동 로그인 상태에서는 {target_service} 연계 시스템에 접근할 수 없습니다.
+
+📋 이유:
+• 수동 로그인 시 일부 세션 정보가 누락됩니다
+• 연계 시스템은 완전한 인증 세션이 필요합니다
+
+✅ 해결방법:
+자동 로그인을 통해 완전한 세션을 확보합니다
+(config.ini의 비밀번호 파일을 사용)
+
+계속 진행하시겠습니까?"""
+            
+            answer = messagebox.askyesno("세션 재확보 필요", message)
             if not answer:
                 app_instance.add_log("사용자가 자동 로그인을 취소했습니다.")
+                messagebox.showinfo("안내", f"{target_service} 시스템 접근이 취소되었습니다.\n\n수동으로 {target_service}에 접근하려면 브라우저에서 직접 이동해주세요.")
                 return None
             
             # 전체 자동 로그인 수행
-            app_instance.add_log("전체 자동 로그인을 시작합니다...")
+            app_instance.add_log("연계 시스템 접근을 위한 자동 로그인을 시작합니다...")
             login_success = do_login_only(app_instance)
             if not login_success:
                 app_instance.add_log("자동 로그인에 실패했습니다.")
+                messagebox.showerror("로그인 실패", "자동 로그인에 실패했습니다.\n\nconfig.ini 파일과 비밀번호 파일을 확인해주세요.")
                 return None
+            
+            app_instance.add_log("자동 로그인이 완료되었습니다. 연계 시스템에 접근합니다.")
         
         # c. 세션이 없을 경우
         elif "lg00_001.do" in current_url or current_url == "about:blank":
@@ -121,19 +139,37 @@ def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
         app_instance.add_log(f"유효한 세션이 확보되었습니다. {target_service}로 이동합니다.")
         portal_page = browser_manager.get_page()
         
-        with portal_page.expect_popup() as popup_info:
+        # 연계 시스템 링크 존재 확인
+        try:
             if target_service == "나이스":
                 service_link = portal_page.get_by_role("link", name="나이스", exact=True).first
             else:
                 raise ValueError(f"지원하지 않는 서비스: {target_service}")
             
+            # 링크가 실제로 보이고 클릭 가능한지 확인
             service_link.wait_for(state="visible", timeout=10000)
+            app_instance.add_log(f"{target_service} 링크를 확인했습니다. 클릭합니다.")
+            
+        except Exception as link_error:
+            app_instance.add_log(f"{target_service} 링크를 찾을 수 없습니다: {link_error}")
+            messagebox.showerror(
+                "링크 오류", 
+                f"{target_service} 링크를 찾을 수 없습니다.\n\n가능한 원인:\n• 세션이 만료되었습니다\n• 페이지 로딩이 완료되지 않았습니다\n\n해결방법:\n다시 시도하거나 브라우저에서 직접 접근해주세요."
+            )
+            return None
+        
+        # 링크 클릭하여 새 창으로 이동
+        with portal_page.expect_popup() as popup_info:
             service_link.click()
         
         target_page = popup_info.value
+        app_instance.add_log(f"{target_service} 새 창이 열렸습니다. 페이지 로딩을 기다립니다...")
         target_page.wait_for_load_state("networkidle")
         browser_manager.page = target_page
-        app_instance.add_log(f"{target_service} 페이지로 이동이 완료되었습니다.")
+        app_instance.add_log(f"✅ {target_service} 페이지 이동이 성공적으로 완료되었습니다!")
+        
+        # 성공 메시지 표시
+        messagebox.showinfo("접속 성공", f"{target_service} 시스템에 성공적으로 접속했습니다!")
         return target_page
         
     except Exception as e:
