@@ -78,73 +78,42 @@ def _handle_error(e, app_instance):
     
     browser_manager.close()
 
-def _navigate_to_neis_or_switch(app_instance) -> Page:
-    """
-    두 종류 사용자 모두를 지원하는 핵심 함수:
-    1. 자동화 사용자: 업무포털에서 자동으로 나이스로 이동
-    2. 수동 사용자: 이미 열려있는 나이스 탭을 찾아 연결
-    """
+def _navigate_to_neis(app_instance) -> Page:
     try:
-        app_instance.add_log("나이스 페이지 연결을 시도합니다...")
+        app_instance.add_log("나이스 페이지로 이동을 시작합니다...")
+        # 1. 이미 열려있는 '나이스' 탭이 있는지 먼저 확인
+        for page in browser_manager.browser.contexts[0].pages:
+            if "neis.go.kr" in page.url and not page.is_closed():
+                app_instance.add_log("이미 열려있는 '나이스' 탭을 발견했습니다. 해당 탭으로 전환합니다.")
+                page.bring_to_front()
+                browser_manager.page = page
+                return page
+
+        # 2. '나이스' 탭이 없다면, 현재 페이지에서 링크를 클릭해서 새로 연다.
+        app_instance.add_log("'나이스' 탭이 없습니다. 업무포털에서 링크를 클릭합니다.")
+        portal_page = browser_manager.get_page()
+        portal_page.bring_to_front()
+
+        # 3. 만약 현재 페이지가 로그인 페이지라면, 사용자가 로그인할 때까지 기다린다.
+        if urls['업무포털 로그인'] in portal_page.url:
+            app_instance.after(0, lambda: messagebox.showinfo("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, '확인' 버튼을 눌러주세요."))
+            portal_page.wait_for_url(lambda url: urls['업무포털 로그인'] not in url, timeout=120000)
+            app_instance.add_log("사용자 로그인을 감지했습니다.")
+
+        # 4. 이제 '나이스' 링크를 클릭한다.
+        with portal_page.expect_popup() as popup_info:
+            neis_link = portal_page.get_by_role("link", name="나이스", exact=True).first
+            neis_link.wait_for(state="visible", timeout=10000)
+            neis_link.click()
         
-        # 먼저 기존에 열려있는 나이스 탭이 있는지 확인
-        if browser_manager.browser and browser_manager.browser.is_connected():
-            for context in browser_manager.browser.contexts:
-                for page in context.pages:
-                    if "neis.go.kr" in page.url:
-                        app_instance.add_log("기존 나이스 탭을 찾았습니다. 해당 탭으로 연결합니다.")
-                        page.bring_to_front()
-                        browser_manager.page = page
-                        return page
-        
-        # 나이스 탭이 없다면 자동화 모드로 진행
-        app_instance.add_log("기존 나이스 탭이 없습니다. 업무포털을 통해 나이스로 이동합니다.")
-        return _navigate_to_neis_auto(app_instance)
+        neis_page = popup_info.value
+        neis_page.wait_for_load_state("networkidle")
+        browser_manager.page = neis_page
+        app_instance.add_log("새로운 '나이스' 탭을 열고 로딩을 완료했습니다.")
+        return neis_page
         
     except Exception as e:
         _handle_error(e, app_instance)
-        return None
-
-def _navigate_to_neis_auto(app_instance) -> Page:
-    """
-    업무포털에 로그인하고, '나이스' 링크를 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다.
-    수동 로그인을 포함한 모든 시나리오에 대응하도록 수정되었습니다.
-    """
-    print("업무포털에 접속하여 나이스로 이동을 시작합니다.")
-    
-    # --- [핵심 수정 부분 시작] ---
-    # 1. 현재 프로그램이 기억하는 페이지를 가져옵니다.
-    portal_page = browser_manager.get_page()
-    portal_page.bring_to_front()
-
-    # 2. 만약 현재 페이지가 로그인 페이지라면, 사용자가 로그인할 때까지 기다려야 합니다.
-    if urls['업무포털 로그인'] in portal_page.url:
-        app_instance.add_log("업무포털 로그인이 필요합니다. 브라우저에서 로그인을 완료해주세요.")
-        app_instance.after(0, lambda: messagebox.showinfo("로그인 필요", "업무포털 로그인이 필요합니다.\n브라우저에서 로그인을 완료한 후, 이 창의 '확인' 버튼을 눌러주세요."))
-        
-        # 사용자가 로그인을 완료하고 URL이 바뀔 때까지 대기합니다.
-        portal_page.wait_for_url(lambda url: urls['업무포털 로그인'] not in url, timeout=120000) # 2분 대기
-        app_instance.add_log("사용자 로그인을 감지했습니다. 다음 단계를 진행합니다.")
-    
-    # 3. 이 시점에는 사용자가 반드시 로그인 후 메인 페이지에 있어야 합니다.
-    #    이제 '나이스' 링크를 클릭합니다.
-    with portal_page.expect_popup() as popup_info:
-        app_instance.add_log("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
-        
-        # '나이스' 링크가 나타날 때까지 최대 10초 대기 (안정성 추가)
-        neis_link = portal_page.get_by_role("link", name="나이스", exact=True).first
-        neis_link.wait_for(state="visible", timeout=10000)
-        neis_link.click()
-    # --- [핵심 수정 부분 끝] ---
-    
-    neis_page = popup_info.value
-    app_instance.add_log("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
-    
-    neis_page.wait_for_load_state("networkidle")
-    browser_manager.page = neis_page # 프로그램의 기억을 '나이스' 페이지로 업데이트
-    app_instance.add_log("나이스 페이지 로딩이 완료되었습니다.")
-    
-    return neis_page
 
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
@@ -255,7 +224,7 @@ def do_login_only(app_instance):
 def neis_attendace(app_instance):
     """나이스 출결관리 메뉴로 이동"""
     try:
-        page = _navigate_to_neis_or_switch(app_instance)
+        page = _navigate_to_neis(app_instance)
         
         neis_go_menu(page, '학급담임', '학적', '출결관리', '출결관리')
         neis_click_btn(page, '조회')
@@ -267,7 +236,7 @@ def neis_attendace(app_instance):
 def neis_haengteuk(app_instance):
     """행동특성 및 종합의견 입력"""
     try:
-        page = _navigate_to_neis_or_switch(app_instance)
+        page = _navigate_to_neis(app_instance)
 
         data = get_excel_data()
         if data is None:
@@ -296,7 +265,7 @@ def neis_haengteuk(app_instance):
 def neis_hakjjong(app_instance):
     """학기말 종합의견(담임) 메뉴로 이동"""
     try:
-        page = _navigate_to_neis_or_switch(app_instance)
+        page = _navigate_to_neis(app_instance)
         
         neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
         app_instance.add_log("학기말 종합의견(담임) 메뉴로 이동했습니다.")
@@ -307,7 +276,7 @@ def neis_hakjjong(app_instance):
 def neis_class_hakjjong(app_instance):
     """학기말 종합의견(교과) 메뉴로 이동"""
     try:
-        page = _navigate_to_neis_or_switch(app_instance)
+        page = _navigate_to_neis(app_instance)
         
         neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
         app_instance.add_log("학기말 종합의견(교과) 메뉴로 이동했습니다.")
