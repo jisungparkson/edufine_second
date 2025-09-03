@@ -66,245 +66,28 @@ class BrowserManager:
 # 단 하나의 현장 감독 인스턴스 생성
 browser_manager = BrowserManager()
 
-def _handle_error(e, app_instance):
-    """오류 처리 시, App 인스턴스를 통해 안전하게 UI에 보고합니다."""
+def _handle_error(e):
+    """오류 처리 시, 현장 감독을 통해 안전하게 모든 것을 종료합니다."""
     error_message = f"{type(e).__name__}: {e}"
-    
-    # 이제 messagebox를 직접 호출하지 않습니다.
-    # 대신, App의 로그 기능과 메시지 박스 기능을 안전하게 호출합니다.
-    if app_instance:
-        app_instance.add_log(f"오류 발생: {error_message}")
-        app_instance.after(0, lambda: messagebox.showerror("오류 발생", error_message))
-    
+    messagebox.showerror("오류 발생", error_message)
     browser_manager.close()
 
-def _check_password_file_exists() -> bool:
-    """
-    config.ini에 설정된 password_file이 실제로 존재하는지 확인
-    """
-    try:
-        import configparser
-        import os
-        
-        config = configparser.ConfigParser()
-        config.read('config.ini', encoding='utf-8')
-        
-        try:
-            password_filepath = config['Paths']['password_file']
-        except (KeyError, configparser.NoSectionError):
-            password_filepath = 'C:\\GPKI\\password.txt'  # 기본값
-        
-        return os.path.exists(password_filepath)
-        
-    except Exception:
-        return False
-
-def _enhance_manual_login_session(app_instance, portal_page) -> bool:
-    """
-    수동 로그인 세션을 연계 시스템 호환 세션으로 보완하는 함수
-    자동 로그인 없이 수동 로그인 세션의 누락된 부분을 채워넣습니다
-    """
-    try:
-        app_instance.add_log("세션 보완 과정을 시작합니다...")
-        
-        # 1. 현재 페이지 새로고침으로 세션 상태 최신화
-        app_instance.add_log("페이지를 새로고침하여 세션 상태를 최신화합니다...")
-        portal_page.reload()
-        portal_page.wait_for_load_state('networkidle', timeout=30000)
-        
-        # 2. 메인 페이지의 모든 링크와 스크립트가 완전히 로드될 때까지 대기
-        app_instance.add_log("페이지 구성 요소가 완전히 로드될 때까지 기다립니다...")
-        portal_page.wait_for_timeout(3000)  # 추가 로딩 시간 확보
-        
-        # 3. 필요한 세션 쿠키나 토큰이 설정되었는지 확인
-        app_instance.add_log("세션 정보를 확인합니다...")
-        
-        # 4. 페이지의 모든 자바스크립트 실행이 완료되도록 대기
-        # 업무포털의 경우 로그인 후 추가 스크립트가 실행되어 세션을 완성할 수 있음
-        try:
-            # 페이지가 완전히 준비될 때까지 대기
-            portal_page.wait_for_function(
-                "() => document.readyState === 'complete'",
-                timeout=10000
-            )
-            app_instance.add_log("페이지 로딩이 완전히 완료되었습니다.")
-        except:
-            app_instance.add_log("페이지 로딩 확인 중 타임아웃이 발생했지만 계속 진행합니다.")
-        
-        # 5. 추가적인 세션 초기화 과정 (필요시)
-        # 일부 웹 애플리케이션은 메인 페이지 방문 후 특정 액션이 필요할 수 있음
-        app_instance.add_log("세션 보완 과정이 완료되었습니다.")
-        return True
-        
-    except Exception as e:
-        app_instance.add_log(f"세션 보완 중 오류 발생: {str(e)}")
-        return False
-
-def _ensure_valid_session_and_navigate(app_instance, target_service) -> Page:
-    """
-    세션 확보 및 이동 Gatekeeper 함수 (수동 로그인 친화적)
-    수동 로그인 사용자도 연계 시스템에 접근할 수 있도록 세션을 보완합니다
-    """
-    try:
-        app_instance.add_log(f"{target_service} 시스템 접근을 위한 세션 상태를 확인합니다...")
-        
-        # a. 현재 페이지 확인
-        current_page = browser_manager.get_page()
-        current_url = current_page.url
-        app_instance.add_log(f"현재 페이지: {current_url}")
-        
-        # b. 수동 로그인 상태 처리 (자동 로그인 강요 없이)
-        if "bpm_man_mn00_001.do" in current_url:
-            app_instance.add_log("수동 로그인 상태가 감지되었습니다.")
-            app_instance.add_log("수동 로그인 세션을 연계 시스템 호환 세션으로 보완합니다...")
-            
-            # 세션 보완 시도 (자동 로그인 대신)
-            session_enhanced = _enhance_manual_login_session(app_instance, current_page)
-            if not session_enhanced:
-                app_instance.add_log("세션 보완에 실패했습니다. 브라우저에서 직접 접근을 시도해보세요.")
-                messagebox.showinfo(
-                    "세션 보완 실패", 
-                    f"수동 로그인 세션을 {target_service} 호환 세션으로 보완하는데 실패했습니다.\n\n대안:\n• 브라우저에서 직접 {target_service} 링크를 클릭해보세요\n• 또는 로그아웃 후 다시 로그인해보세요"
-                )
-                return None
-            
-            app_instance.add_log("수동 로그인 세션이 성공적으로 보완되었습니다.")
-        
-        # c. 세션이 없을 경우
-        elif "lg00_001.do" in current_url or current_url == "about:blank":
-            app_instance.add_log("세션이 없는 상태입니다.")
-            
-            # password_file 존재 여부 확인
-            has_password_file = _check_password_file_exists()
-            
-            if has_password_file:
-                app_instance.add_log("비밀번호 파일이 존재합니다. 자동 로그인을 시도합니다.")
-                login_success = do_login_only(app_instance)
-                if not login_success:
-                    app_instance.add_log("자동 로그인에 실패했습니다.")
-                    return None
-            else:
-                app_instance.add_log("비밀번호 파일이 없습니다. 수동 로그인이 필요합니다.")
-                messagebox.showinfo(
-                    "로그인 필요",
-                    f"{target_service} 시스템에 접근하려면 먼저 로그인이 필요합니다.\n\n방법:\n1. '업무포털 접속' 버튼을 클릭하세요\n2. 브라우저에서 직접 로그인하세요\n3. 로그인 완료 후 이 버튼을 다시 클릭하세요"
-                )
-                return None
-        
-        # d. 세션 확보 후 타겟 서비스로 이동
-        app_instance.add_log(f"유효한 세션이 확보되었습니다. {target_service}로 이동합니다.")
-        portal_page = browser_manager.get_page()
-        
-        # 연계 시스템 링크 접근 시도 (재시도 포함)
-        for attempt in range(2):  # 최대 2번 시도
-            try:
-                app_instance.add_log(f"{target_service} 링크 접근 시도 {attempt + 1}/2")
-                
-                if target_service == "나이스":
-                    service_link = portal_page.get_by_role("link", name="나이스", exact=True).first
-                else:
-                    raise ValueError(f"지원하지 않는 서비스: {target_service}")
-                
-                # 링크가 실제로 보이고 클릭 가능한지 확인
-                service_link.wait_for(state="visible", timeout=10000)
-                app_instance.add_log(f"{target_service} 링크를 확인했습니다. 클릭합니다.")
-                
-                # 링크 클릭하여 새 창으로 이동
-                with portal_page.expect_popup() as popup_info:
-                    service_link.click()
-                
-                target_page = popup_info.value
-                app_instance.add_log(f"{target_service} 새 창이 열렸습니다. 페이지 로딩을 기다립니다...")
-                target_page.wait_for_load_state("networkidle")
-                
-                # 연계 시스템 페이지가 제대로 로드되었는지 확인
-                if target_service == "나이스" and "neis.go.kr" in target_page.url:
-                    browser_manager.page = target_page
-                    app_instance.add_log(f"✅ {target_service} 페이지 이동이 성공적으로 완료되었습니다!")
-                    messagebox.showinfo("접속 성공", f"{target_service} 시스템에 성공적으로 접속했습니다!")
-                    return target_page
-                else:
-                    app_instance.add_log(f"{target_service} 페이지 로드에 문제가 있습니다. 재시도합니다...")
-                    if attempt == 0:  # 첫 번째 시도 실패 시 세션 재보완
-                        app_instance.add_log("세션 재보완을 시도합니다...")
-                        _enhance_manual_login_session(app_instance, portal_page)
-                        continue
-                    
-            except Exception as link_error:
-                app_instance.add_log(f"{target_service} 링크 접근 실패 (시도 {attempt + 1}): {link_error}")
-                
-                if attempt == 0:  # 첫 번째 시도 실패 시
-                    app_instance.add_log("세션을 재보완하고 다시 시도합니다...")
-                    _enhance_manual_login_session(app_instance, portal_page)
-                    continue
-        
-        # 모든 시도 실패
-        app_instance.add_log(f"모든 시도가 실패했습니다. 수동 접근을 안내합니다.")
-        messagebox.showinfo(
-            "자동 접근 실패",
-            f"{target_service} 자동 접근에 실패했습니다.\n\n수동 접근 방법:\n1. 브라우저에서 직접 '{target_service}' 링크를 클릭해보세요\n2. 만약 링크가 작동하지 않으면:\n   • 로그아웃 후 다시 로그인해보세요\n   • 브라우저를 새로고침해보세요"
-        )
-        return None
-        
-    except Exception as e:
-        _handle_error(e, app_instance)
-        return None
-
-def _navigate_to_neis(app_instance) -> Page:
-    """
-    상태 감지 및 사용자 안내 중심의 나이스 이동 함수
-    수동/자동 로그인 상태를 지능적으로 판단하여 적절한 안내 제공
-    """
-    try:
-        app_instance.add_log("나이스 페이지 접근을 시작합니다...")
-        
-        # 1단계: 이미 열린 나이스 탭 검색
-        if browser_manager.browser and browser_manager.browser.is_connected():
-            for context in browser_manager.browser.contexts:
-                for page in context.pages:
-                    if "neis.go.kr" in page.url and not page.is_closed():
-                        app_instance.add_log("이미 열려있는 나이스 탭을 발견했습니다.")
-                        page.bring_to_front()
-                        browser_manager.page = page
-                        return page
-        
-        # 2단계: 상태 판단 - 업무포털 메인 페이지 확인 (수동 로그인 판단)
-        portal_page = browser_manager.get_page()
-        current_url = portal_page.url
-        app_instance.add_log(f"현재 페이지 URL: {current_url}")
-        
-        # 3단계 & 4단계: 수동 로그인 상태일 경우 사용자 안내 및 대기
-        if 'bpm_man_mn00_001.do' in current_url:
-            app_instance.add_log("수동 로그인 상태 감지. 사용자에게 나이스 직접 클릭을 요청합니다.")
-            messagebox.showinfo("다음 단계 안내", 
-                               "수동으로 로그인하셨습니다.\n\n"
-                               "1. 웹 화면에서 직접 [나이스] 링크를 클릭하세요.\n"
-                               "2. 새 탭으로 나이스가 열리면, 이 창의 [확인] 버튼을 누르세요.")
-            
-            # 사용자가 나이스 탭을 열 때까지 기다림
-            app_instance.add_log("사용자가 나이스 탭을 여는 것을 기다립니다...")
-            with browser_manager.browser.expect_page() as new_page_info:
-                pass  # 사용자의 클릭을 기다림
-            
-            neis_page = new_page_info.value
-            neis_page.wait_for_load_state("networkidle")
-            browser_manager.page = neis_page
-            app_instance.add_log("사용자가 연 '나이스' 탭으로 제어권을 전환했습니다.")
-            return neis_page
-        
-        # 5단계: 다른 페이지에 있는 경우 (로그인 페이지이거나 기타 상황)
-        else:
-            app_instance.add_log("업무포털 메인 페이지가 아닙니다. 먼저 로그인이 필요할 수 있습니다.")
-            messagebox.showinfo("로그인 안내", 
-                               "나이스 접근을 위해서는 먼저 업무포털 로그인이 필요합니다.\n\n"
-                               "1. '업무포털 자동 로그인 (권장)' 버튼을 클릭하거나\n"
-                               "2. '브라우저 열기 (수동 로그인용)' 버튼으로 직접 로그인하세요.")
-            return None
-            
-    except Exception as e:
-        _handle_error(e, app_instance)
-        return None
-
+def _navigate_to_neis() -> Page:
+    """업무포털에 로그인하고, '나이스' 버튼을 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다."""
+    print("업무포털에 접속하여 나이스로 이동을 시작합니다.")
+    open_eduptl()
+    portal_page = browser_manager.get_page()
+    
+    with portal_page.expect_popup() as popup_info:
+        print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
+        # '나이스' 링크가 여러 개 발견되었으므로, 그 중 첫 번째 것을 클릭하도록 .first를 추가합니다.
+        portal_page.get_by_role("link", name="나이스", exact=True).first.click()
+    
+    neis_page = popup_info.value
+    print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
+    neis_page.wait_for_load_state("networkidle")
+    browser_manager.page = neis_page
+    return neis_page
 
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
@@ -337,35 +120,28 @@ def _wait_for_login_success(page: Page):
     
     print("로그인 완료 확인됨")
 
-def open_eduptl(app_instance):
+def open_eduptl():
     """
-    브라우저를 열고 업무포털 로그인 페이지만 띄워줍니다.
-    로그인은 사용자가 직접 수행하며, 프로그램은 즉시 완료됩니다.
+    업무포털 '로그인' 페이지로 직접 이동합니다.
+    자동으로 로그인을 수행하지는 않습니다.
     """
     try:
-        app_instance.add_log("브라우저를 열고 로그인 페이지로 이동합니다...")
-        
         page = browser_manager.get_page()
-        page.bring_to_front()  # 창을 맨 앞으로 가져옵니다
+        page.bring_to_front() # 창을 맨 앞으로 가져옵니다.
         
-        # 업무포털 로그인 페이지로 직접 이동
+        print("업무포털 로그인 페이지로 직접 이동합니다...")
+        
+        # '업무포털 로그인' URL로 직접 이동하도록 수정
         page.goto(urls['업무포털 로그인'])
         
-        # 페이지 로딩 완료 대기 (비동기로 처리하여 UI 차단 방지)
-        page.wait_for_load_state('domcontentloaded')  # 기본 DOM 로딩만 기다림
-        
-        app_instance.add_log("✅ 로그인 페이지가 준비되었습니다. 수동 로그인을 진행하세요.")
-        app_instance.after(0, lambda: messagebox.showinfo(
-            "준비 완료", 
-            "브라우저가 열리고 로그인 페이지로 이동했습니다.\n\n"
-            "이제 브라우저에서 직접 로그인하시면 됩니다.\n"
-            "로그인 완료 후 다른 기능을 사용하세요."
-        ))
+        # 페이지 로딩이 완료될 때까지 기다립니다.
+        page.wait_for_load_state('networkidle')
+        print("로그인 페이지 로딩 완료.")
         
     except Exception as e:
-        _handle_error(e, app_instance)
+        _handle_error(e) # 오류 발생 시 처리
 
-def do_login_only(app_instance):
+def do_login_only():
     """
     현재 어느 페이지에 있든, 업무포털 로그인 화면으로 이동하여 로그인을 수행합니다.
     """
@@ -413,39 +189,30 @@ def do_login_only(app_instance):
         except TimeoutError:
             print("로그인 후 팝업창이 없거나 관련 요소를 찾지 못해 넘어갑니다.")
         
-        app_instance.add_log("업무포털 로그인이 완료되었습니다.")
-        app_instance.after(0, lambda: messagebox.showinfo("성공", "로그인이 완료되었습니다."))
-        return True
+        messagebox.showinfo("성공", "로그인이 완료되었습니다.")
 
     except Exception as e:
-        _handle_error(e, app_instance)
-        return False
+        _handle_error(e)
 
-def neis_attendace(app_instance):
+def neis_attendace():
     """나이스 출결관리 메뉴로 이동"""
     try:
-        page = _navigate_to_neis(app_instance)
-        if not page:
-            return
+        page = _navigate_to_neis()
         
         neis_go_menu(page, '학급담임', '학적', '출결관리', '출결관리')
         neis_click_btn(page, '조회')
-        app_instance.add_log("나이스 출결관리 메뉴로 이동하여 조회를 클릭했습니다.")
-        app_instance.after(0, lambda: messagebox.showinfo("완료", "나이스 출결관리 메뉴로 이동하여 조회를 클릭했습니다."))
+        messagebox.showinfo("완료", "나이스 출결관리 메뉴로 이동하여 조회를 클릭했습니다.")
     except Exception as e:
-        _handle_error(e, app_instance)
+        _handle_error(e)
 
-def neis_haengteuk(app_instance):
+def neis_haengteuk():
     """행동특성 및 종합의견 입력"""
     try:
-        page = _navigate_to_neis(app_instance)
-        if not page:
-            return
+        page = _navigate_to_neis()
 
         data = get_excel_data()
         if data is None:
-            app_instance.add_log("엑셀 파일을 선택하지 않아 작업을 취소합니다.")
-            app_instance.after(0, lambda: messagebox.showwarning("취소", "엑셀 파일을 선택하지 않아 작업을 취소합니다."))
+            messagebox.showwarning("취소", "엑셀 파일을 선택하지 않아 작업을 취소합니다.")
             return
 
         neis_go_menu(page, '학급담임', '학생생활', '행동특성및종합의견', '행동특성및종합의견')
@@ -454,42 +221,32 @@ def neis_haengteuk(app_instance):
         total_student_cnt = int(page.locator('span.fw-medium').inner_text())
         done = set()
         
-        app_instance.add_log("행동특성 입력을 시작합니다. 첫 번째 학생을 클릭해주세요.")
-        app_instance.after(0, lambda: messagebox.showinfo("시작", "지금부터 행동특성 입력을 시작합니다.\n첫 번째 학생을 클릭해주세요."))
+        messagebox.showinfo("시작", "지금부터 행동특성 입력을 시작합니다.\n첫 번째 학생을 클릭해주세요.")
 
         while len(done) < total_student_cnt:
             done = neis_fill_row(page, done, data, '내용', 'div.cl-control.cl-default-cell')
 
         neis_click_btn(page, '저장')
-        app_instance.add_log("행동특성 및 종합의견 입력 및 저장을 완료했습니다.")
-        app_instance.after(0, lambda: messagebox.showinfo("완료", "행동특성 및 종합의견 입력 및 저장을 완료했습니다."))
+        messagebox.showinfo("완료", "행동특성 및 종합의견 입력 및 저장을 완료했습니다.")
     except Exception as e:
-        _handle_error(e, app_instance)
+        _handle_error(e)
 
-def neis_hakjjong(app_instance):
+def neis_hakjjong():
     """학기말 종합의견(담임) 메뉴로 이동"""
     try:
-        page = _navigate_to_neis(app_instance)
-        if not page:
-            return
+        page = _navigate_to_neis()
         
         neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
-        app_instance.add_log("학기말 종합의견(담임) 메뉴로 이동했습니다.")
-        app_instance.after(0, lambda: messagebox.showinfo("완료", "학기말 종합의견(담임) 메뉴로 이동했습니다."))
+        messagebox.showinfo("완료", "학기말 종합의견(담임) 메뉴로 이동했습니다.")
     except Exception as e:
-        _handle_error(e, app_instance)
+        _handle_error(e)
 
-def neis_class_hakjjong(app_instance):
+def neis_class_hakjjong():
     """학기말 종합의견(교과) 메뉴로 이동"""
     try:
-        page = _navigate_to_neis(app_instance)
-        if not page:
-            return
-        
+        page = _navigate_to_neis()
+             
         neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
-        app_instance.add_log("학기말 종합의견(교과) 메뉴로 이동했습니다.")
-        app_instance.after(0, lambda: messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다."))
+        messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
     except Exception as e:
-        _handle_error(e, app_instance)
-
-
+        _handle_error(e)

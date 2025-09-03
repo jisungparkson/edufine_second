@@ -10,6 +10,7 @@ from playwright.sync_api import Page, Browser, expect, TimeoutError
 urls = {
     '업무포털 메인': 'https://jbe.eduptl.kr/bpm_man_mn00_001.do',
     '업무포털 로그인': 'https://jbe.eduptl.kr/bpm_lgn_lg00_001.do',
+    '에듀파인': 'http://klef.jbe.go.kr/',
     '나이스': 'https://jbe.neis.go.kr/cmc_fcm_lg01_000.do?data=W2U5NE1jNlpoNGdUR2tKaFJyWFp4TGE3SGpURFViRWNYVHBWR1Q2ZTdUaHVhQVpjWDd2QnpibnFwYmNIMkljZTI5VTMxUjgvZHdyYTMyOEE0d0xnZllzQ2RDTmhvYzdDVGlJdDd2KzRMbzU1ckNNL05RZkVVVjRzcWJrWENGK2xFeVZ2a3c3OWw1TUlTemcxcGoxczNVanhTNitGT1JwUTZ1d3l6SjAzUDVyST0='
 }
 

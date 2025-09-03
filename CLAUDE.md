@@ -11,7 +11,13 @@ This is a Korean educational portal automation tool that uses Playwright for web
 **Installation:**
 ```bash
 pip install -r requirements.txt
+playwright install  # Install browser binaries
 ```
+
+**Configuration:**
+The application uses `config.ini` for path configuration:
+- `password_file`: Path to GPKI certificate password file (default: `C:\GPKI\password.txt`)
+- `user_data_dir`: Edge user data directory for debug mode (default: `C:\temp\edge-debug`)
 
 **Browser Setup:**
 Before running the application, start Edge in debug mode using:
@@ -21,8 +27,8 @@ start_edge_debug.bat
 This launches Edge with remote debugging on port 9222, allowing the application to connect to existing browser sessions.
 
 **Required External Files:**
-- Password file at `C:\GPKI\password.txt` containing the certificate password
-- Excel files for bulk data input (선택된 through file dialog)
+- Password file containing the certificate password (path specified in config.ini)
+- Excel files for bulk data input (selected through file dialog)
 
 ## Running the Application
 
@@ -35,9 +41,11 @@ python interface.py
 
 **Core Components:**
 
-1. **interface.py** - Main Tkinter GUI with buttons for different automation tasks
+1. **interface.py** - Main CustomTkinter GUI with 3-column layout and smart paste functionality
 2. **btn_commands.py** - Contains all automation logic using Playwright
 3. **utils.py** - Shared utilities for web navigation, Excel processing, and authentication
+4. **config.ini** - Configuration file for paths and settings
+5. **start_edge_debug.bat** - Batch script to launch Edge in debug mode
 
 **Key Architecture Pattern:**
 
@@ -66,11 +74,36 @@ The application processes Excel files with student data:
 - Expects '번호' (number) column as index
 - Supports bulk input of student behavior comments and evaluations
 
+**Smart Paste Feature:**
+The GUI includes an advanced clipboard management system:
+- 4-step guided paste process with visual feedback
+- Tab key automation with configurable input modes
+- Support for different types of educational forms (행동특성, 교과세특, 자율활동, etc.)
+- Real-time clipboard monitoring and automated input
+
 ## Key URLs and Systems
 
 - 업무포털 (Work Portal): `https://jbe.eduptl.kr/`
 - 나이스 (NEIS): `https://jbe.neis.go.kr/` 
 - 에듀파인 (EduFine): `http://klef.jbe.go.kr/`
+
+## Development Commands
+
+**Run the application:**
+```bash
+python interface.py
+```
+
+**Install dependencies:**
+```bash
+pip install -r requirements.txt
+playwright install
+```
+
+**Start Edge debug mode:**
+```bash
+start_edge_debug.bat
+```
 
 ## Navigation Utilities
 
