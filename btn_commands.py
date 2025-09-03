@@ -339,24 +339,31 @@ def _wait_for_login_success(page: Page):
 
 def open_eduptl(app_instance):
     """
-    업무포털 '로그인' 페이지로 직접 이동합니다.
-    자동으로 로그인을 수행하지는 않습니다.
+    브라우저를 열고 업무포털 로그인 페이지만 띄워줍니다.
+    로그인은 사용자가 직접 수행하며, 프로그램은 즉시 완료됩니다.
     """
     try:
+        app_instance.add_log("브라우저를 열고 로그인 페이지로 이동합니다...")
+        
         page = browser_manager.get_page()
-        page.bring_to_front() # 창을 맨 앞으로 가져옵니다.
+        page.bring_to_front()  # 창을 맨 앞으로 가져옵니다
         
-        print("업무포털 로그인 페이지로 직접 이동합니다...")
-        
-        # '업무포털 로그인' URL로 직접 이동하도록 수정
+        # 업무포털 로그인 페이지로 직접 이동
         page.goto(urls['업무포털 로그인'])
         
-        # 페이지 로딩이 완료될 때까지 기다립니다.
-        page.wait_for_load_state('networkidle')
-        print("로그인 페이지 로딩 완료.")
+        # 페이지 로딩 완료 대기 (비동기로 처리하여 UI 차단 방지)
+        page.wait_for_load_state('domcontentloaded')  # 기본 DOM 로딩만 기다림
+        
+        app_instance.add_log("✅ 로그인 페이지가 준비되었습니다. 수동 로그인을 진행하세요.")
+        app_instance.after(0, lambda: messagebox.showinfo(
+            "준비 완료", 
+            "브라우저가 열리고 로그인 페이지로 이동했습니다.\n\n"
+            "이제 브라우저에서 직접 로그인하시면 됩니다.\n"
+            "로그인 완료 후 다른 기능을 사용하세요."
+        ))
         
     except Exception as e:
-        _handle_error(e, app_instance) # 오류 발생 시 처리
+        _handle_error(e, app_instance)
 
 def do_login_only(app_instance):
     """
