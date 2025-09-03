@@ -123,7 +123,7 @@ def _wait_for_login_success(page: Page):
 def open_eduptl():
     """
     업무포털 '로그인' 페이지로 직접 이동합니다.
-    자동으로 로그인을 수행하지는 않습니다.
+    사용자의 수동 로그인이 완료될 때까지 기다립니다.
     """
     try:
         page = browser_manager.get_page()
@@ -137,6 +137,9 @@ def open_eduptl():
         # 페이지 로딩이 완료될 때까지 기다립니다.
         page.wait_for_load_state('networkidle')
         print("로그인 페이지 로딩 완료.")
+        
+        # 사용자의 수동 로그인 완료를 기다립니다.
+        _wait_for_login_success(page)
         
     except Exception as e:
         _handle_error(e) # 오류 발생 시 처리

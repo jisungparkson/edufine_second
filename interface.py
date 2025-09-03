@@ -233,8 +233,8 @@ class App(customtkinter.CTk):
     def create_automation_buttons(self):
         """자동화 작업 버튼들을 생성하는 함수"""
         button_configs = [
-            {"text": "브라우저 열기 (수동 로그인용)", "command": self.run_open_eduptl},
-            {"text": "업무포털 자동 로그인 (권장)", "command": self.run_do_login_only},
+            {"text": "업무포털 접속", "command": self.run_open_eduptl},
+            {"text": "업무포털 로그인", "command": self.run_do_login_only},
             {"text": "나이스 출결 바로가기", "command": self.run_neis_attendace},
             {"text": "행동특성 및 종합의견 입력", "command": self.run_neis_haengteuk},
             {"text": "학기말 종합의견 (담임)", "command": self.run_neis_hakjjong},
@@ -427,25 +427,24 @@ class App(customtkinter.CTk):
         thread = threading.Thread(target=wrapper, daemon=True)
         thread.start()
 
-    # --- 각 자동화 작업을 실행하는 함수들 (lambda를 사용하여 self 전달) ---
+    # --- 각 자동화 작업을 실행하는 함수들 ---
     def run_open_eduptl(self):
-        self.run_in_thread_with_log(lambda: open_eduptl(self), "업무포털 접속")
+        self.run_in_thread_with_log(open_eduptl, "업무포털 접속")
 
     def run_do_login_only(self):
-        self.run_in_thread_with_log(lambda: do_login_only(self), "업무포털 로그인")
+        self.run_in_thread_with_log(do_login_only, "업무포털 로그인")
 
     def run_neis_attendace(self):
-        self.run_in_thread_with_log(lambda: neis_attendace(self), "나이스 출결 바로가기")
+        self.run_in_thread_with_log(neis_attendace, "나이스 출결 바로가기")
 
     def run_neis_haengteuk(self):
-        self.run_in_thread_with_log(lambda: neis_haengteuk(self), "행동특성 및 종합의견 입력")
+        self.run_in_thread_with_log(neis_haengteuk, "행동특성 및 종합의견 입력")
 
     def run_neis_hakjjong(self):
-        self.run_in_thread_with_log(lambda: neis_hakjjong(self), "학기말 종합의견 (담임)")
+        self.run_in_thread_with_log(neis_hakjjong, "학기말 종합의견 (담임)")
 
     def run_neis_class_hakjjong(self):
-        self.run_in_thread_with_log(lambda: neis_class_hakjjong(self), "학기말 종합의견 (교과)")
-
+        self.run_in_thread_with_log(neis_class_hakjjong, "학기말 종합의견 (교과)")
 
     def on_closing(self):
         """창이 닫힐 때 호출될 함수 - 브라우저 리소스를 안전하게 정리"""

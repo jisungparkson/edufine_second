@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Read(/C:\\web\\edufine/**)",
+      "Read(/C:\\web\\edufine/**)",
+      "Read(/C:\\web\\edufine/**)",
+      "Read(/C:\\web\\edufine/**)"
     ],
     "deny": [],
     "ask": []
