@@ -2,8 +2,7 @@
 
 from playwright.sync_api import sync_playwright, Page, Playwright, Browser, TimeoutError, expect
 from utils import (
-    urls, login, neis_go_menu, neis_click_btn, get_excel_data, 
-    neis_fill_row, switch_tab, open_url_in_new_tab
+    urls, login, neis_go_menu, neis_click_btn, switch_tab, open_url_in_new_tab
 )
 from tkinter import messagebox
 
@@ -301,53 +300,6 @@ def do_login_only():
         
         messagebox.showinfo("성공", "로그인이 완료되었습니다.")
 
-    except Exception as e:
-        _handle_error(e)
-
-def neis_attendace():
-    """나이스 출결관리 메뉴로 이동"""
-    try:
-        page = _navigate_to_neis()
-        
-        neis_go_menu(page, '학급담임', '학적', '출결관리', '출결관리')
-        neis_click_btn(page, '조회')
-        messagebox.showinfo("완료", "나이스 출결관리 메뉴로 이동하여 조회를 클릭했습니다.")
-    except Exception as e:
-        _handle_error(e)
-
-def neis_haengteuk():
-    """행동특성 및 종합의견 입력"""
-    try:
-        page = _navigate_to_neis()
-
-        data = get_excel_data()
-        if data is None:
-            messagebox.showwarning("취소", "엑셀 파일을 선택하지 않아 작업을 취소합니다.")
-            return
-
-        neis_go_menu(page, '학급담임', '학생생활', '행동특성및종합의견', '행동특성및종합의견')
-        neis_click_btn(page, '조회')
-
-        total_student_cnt = int(page.locator('span.fw-medium').inner_text())
-        done = set()
-        
-        messagebox.showinfo("시작", "지금부터 행동특성 입력을 시작합니다.\n첫 번째 학생을 클릭해주세요.")
-
-        while len(done) < total_student_cnt:
-            done = neis_fill_row(page, done, data, '내용', 'div.cl-control.cl-default-cell')
-
-        neis_click_btn(page, '저장')
-        messagebox.showinfo("완료", "행동특성 및 종합의견 입력 및 저장을 완료했습니다.")
-    except Exception as e:
-        _handle_error(e)
-
-def neis_hakjjong():
-    """학기말 종합의견(담임) 메뉴로 이동"""
-    try:
-        page = _navigate_to_neis()
-        
-        neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
-        messagebox.showinfo("완료", "학기말 종합의견(담임) 메뉴로 이동했습니다.")
     except Exception as e:
         _handle_error(e)
 

@@ -2,8 +2,7 @@
 
 import os.path
 import configparser
-from tkinter import filedialog, messagebox
-import pandas as pd
+from tkinter import messagebox
 from playwright.sync_api import Page, Browser, expect, TimeoutError
 
 # (urls 딕셔너리 등 다른 부분은 변경 없음)
@@ -140,32 +139,3 @@ def neis_click_btn(page: Page, button_name: str):
         print(f"버튼 '{button_name}' 클릭 중 오류: {e}")
         raise
 
-def get_excel_data() -> pd.DataFrame:
-    file_path = filedialog.askopenfilename(
-        title="엑셀 파일 선택",
-        filetypes=(("Excel files", "*.xlsx *.xls"), ("All files", "*.*"))
-    )
-    if not file_path:
-        return None
-    return pd.read_excel(file_path, index_col='번호')
-
-def neis_fill_row(page: Page, done: set, data: pd.DataFrame, column: str, student_id_css: str) -> set:
-    try:
-        selected_row = page.locator('div.cl-grid-row.cl-selected')
-        student_id_text = selected_row.locator(student_id_css).inner_text()
-        student_id = int(student_id_text)
-        textarea = selected_row.locator('textarea.cl-text')
-        if student_id in done:
-            textarea.press('Tab')
-            return done
-        if textarea.input_value():
-            textarea.press('End')
-            textarea.press(' ')
-        textarea.press_sequentially(str(data.loc[student_id, column]), delay=10)
-        done.add(student_id)
-        textarea.press('Tab')
-        page.wait_for_timeout(500)
-    except Exception as e:
-        print(f'데이터 입력 중 오류 발생: {e}')
-    finally:
-        return done

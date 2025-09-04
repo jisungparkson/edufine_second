@@ -8,8 +8,7 @@ import pyautogui
 import pyperclip
 from tkinter import messagebox
 from btn_commands import (
-    open_eduptl, do_login_only, neis_attendace, neis_haengteuk,
-    neis_hakjjong, neis_class_hakjjong, browser_manager
+    open_eduptl, do_login_only, neis_class_hakjjong, browser_manager
 )
 
 # --- UI 기본 설정 ---
@@ -235,9 +234,6 @@ class App(customtkinter.CTk):
         button_configs = [
             {"text": "업무포털 접속", "command": self.run_open_eduptl},
             {"text": "업무포털 로그인", "command": self.run_do_login_only},
-            {"text": "나이스 출결 바로가기", "command": self.run_neis_attendace},
-            {"text": "행동특성 및 종합의견 입력", "command": self.run_neis_haengteuk},
-            {"text": "학기말 종합의견 (담임)", "command": self.run_neis_hakjjong},
             {"text": "학기말 종합의견 (교과)", "command": self.run_neis_class_hakjjong}
         ]
         
@@ -433,15 +429,6 @@ class App(customtkinter.CTk):
 
     def run_do_login_only(self):
         self.run_in_thread_with_log(do_login_only, "업무포털 로그인")
-
-    def run_neis_attendace(self):
-        self.run_in_thread_with_log(neis_attendace, "나이스 출결 바로가기")
-
-    def run_neis_haengteuk(self):
-        self.run_in_thread_with_log(neis_haengteuk, "행동특성 및 종합의견 입력")
-
-    def run_neis_hakjjong(self):
-        self.run_in_thread_with_log(neis_hakjjong, "학기말 종합의견 (담임)")
 
     def run_neis_class_hakjjong(self):
         self.run_in_thread_with_log(neis_class_hakjjong, "학기말 종합의견 (교과)")
