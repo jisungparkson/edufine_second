@@ -81,13 +81,37 @@ def get_password_from_file():
 
 # (이하 다른 모든 함수들은 변경 없음)
 def neis_go_menu(page: Page, level1: str, level2: str, level3: str, level4: str):
-    page.locator(f'ul.cl-navigationbar-bar > li:has-text("{level1}")').click()
-    menu_container = page.locator('ul.cl-navigationbar-list.gnb')
-    menu_container.locator(f'li.cl-navigationbar-category:has-text("{level2}")').locator(f'li:has-text("{level3}")').click()
-    fourth_menu_item = page.locator(f'a.cl-leaf.cl-level-2.cl-sidenavigation-item[title="{level4}"]')
-    expect(fourth_menu_item).to_be_visible(timeout=10000)
-    fourth_menu_item.click()
-    page.wait_for_load_state('networkidle')
+    """나이스 메뉴 탐색 - 견고한 대기 조건으로 개선"""
+    try:
+        # 1단계: 첫 번째 메뉴 클릭
+        level1_menu = page.locator(f'ul.cl-navigationbar-bar > li:has-text("{level1}")')
+        expect(level1_menu).to_be_visible(timeout=15000)
+        level1_menu.click()
+        page.wait_for_timeout(1000)  # 메뉴 전개 대기
+        
+        # 2단계: 서브메뉴 컨테이너 확인 및 클릭
+        menu_container = page.locator('ul.cl-navigationbar-list.gnb')
+        expect(menu_container).to_be_visible(timeout=15000)
+        
+        level3_menu = menu_container.locator(f'li.cl-navigationbar-category:has-text("{level2}")').locator(f'li:has-text("{level3}")')
+        expect(level3_menu).to_be_visible(timeout=15000)
+        level3_menu.click()
+        page.wait_for_timeout(1000)  # 메뉴 전개 대기
+        
+        # 3단계: 최종 메뉴 아이템 클릭
+        fourth_menu_item = page.locator(f'a.cl-leaf.cl-level-2.cl-sidenavigation-item[title="{level4}"]')
+        expect(fourth_menu_item).to_be_visible(timeout=15000)
+        fourth_menu_item.click()
+        
+        # 4단계: 페이지 로딩 완료 대기 (견고한 조건)
+        page.wait_for_load_state('networkidle', timeout=30000)
+        page.wait_for_timeout(2000)  # 추가 안정화 대기
+        
+        print(f"메뉴 탐색 완료: {level1} > {level2} > {level3} > {level4}")
+        
+    except Exception as e:
+        print(f"메뉴 탐색 중 오류: {e}")
+        raise
 
 def switch_tab(browser: Browser, title_keyword: str) -> Page:
     for page in browser.contexts[0].pages:
@@ -102,9 +126,19 @@ def open_url_in_new_tab(browser: Browser, url: str) -> Page:
     return new_page
 
 def neis_click_btn(page: Page, button_name: str):
-    button_locator = page.get_by_role("button", name=button_name, exact=True)
-    expect(button_locator).to_be_visible(timeout=10000)
-    button_locator.click()
+    """나이스 버튼 클릭 - 견고한 대기 조건으로 개선"""
+    try:
+        button_locator = page.get_by_role("button", name=button_name, exact=True)
+        expect(button_locator).to_be_visible(timeout=15000)
+        expect(button_locator).to_be_enabled(timeout=15000)
+        
+        button_locator.click()
+        page.wait_for_timeout(1000)  # 클릭 후 안정화 대기
+        print(f"버튼 클릭 완료: {button_name}")
+        
+    except Exception as e:
+        print(f"버튼 '{button_name}' 클릭 중 오류: {e}")
+        raise
 
 def get_excel_data() -> pd.DataFrame:
     file_path = filedialog.askopenfilename(

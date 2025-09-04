@@ -13,29 +13,55 @@ class BrowserManager:
         self.playwright: Playwright = None
         self.browser: Browser = None
         self.page: Page = None
+        self.debug_port = 9222
         print("BrowserManager가 준비되었습니다.")
 
     def get_page(self) -> Page:
         """
-        [배포용 수정 버전]
-        항상 새로운 브라우저를 시작하고, 유효한 페이지 객체를 반환합니다.
+        기존 Edge 디버그 브라우저에 연결을 우선 시도하고, 
+        실패 시 새 브라우저를 시작하는 스마트 연결 시스템
         """
-        # 1. 플레이라이트 인스턴스가 없으면 새로 시작합니다.
+        # 1. Playwright 인스턴스 확인
         if self.playwright is None:
             print("Playwright 인스턴스를 시작합니다.")
             self.playwright = sync_playwright().start()
 
-        # 2. 브라우저가 없거나, 연결이 끊겼다면 새로 시작합니다.
-        #    connect_over_cdp (기존 브라우저 연결) 로직을 완전히 제거합니다.
-        if self.browser is None or not self.browser.is_connected():
-            print("새 브라우저를 시작합니다.")
-            # headless=False는 브라우저 창이 보이도록 하는 옵션입니다.
+        # 2. 기존 브라우저가 연결되어 있고 유효하면 그대로 사용
+        if self.browser and self.browser.is_connected():
+            if self.page and not self.page.is_closed():
+                return self.page
+
+        # 3. Edge 디버그 모드에 연결 시도 (사용자가 수동 로그인한 브라우저)
+        try:
+            print(f"포트 {self.debug_port}에서 기존 Edge 브라우저 연결을 시도합니다...")
+            self.browser = self.playwright.chromium.connect_over_cdp(f"http://localhost:{self.debug_port}")
+            print("기존 Edge 브라우저에 성공적으로 연결되었습니다!")
+            
+            # 기존 페이지 중 업무포털 관련 페이지 찾기
+            portal_page = self._find_portal_page()
+            if portal_page:
+                print("기존 업무포털 페이지를 찾았습니다.")
+                self.page = portal_page
+                return self.page
+            
+        except Exception as e:
+            print(f"기존 브라우저 연결 실패: {e}")
+
+        # 4. 연결 실패 시 새 브라우저 시작
+        try:
+            print("새 Edge 브라우저를 시작합니다...")
+            self.browser = self.playwright.chromium.launch(
+                headless=False, 
+                channel="msedge",
+                args=[f"--remote-debugging-port={self.debug_port}"]
+            )
+        except Exception as e:
+            print(f"디버그 포트로 브라우저 시작 실패, 일반 모드로 시도: {e}")
             self.browser = self.playwright.chromium.launch(headless=False, channel="msedge")
 
-        # 3. 페이지가 없거나 닫혔다면, 새로 만듭니다.
+        # 5. 페이지 생성
         if self.page is None or self.page.is_closed():
-            print("페이지를 새로 생성합니다.")
-            # 이미 컨텍스트가 있을 수 있으므로 확인 후 새 페이지를 만듭니다.
+            print("새 페이지를 생성합니다.")
             if len(self.browser.contexts) > 0:
                 self.page = self.browser.contexts[0].new_page()
             else:
@@ -45,6 +71,34 @@ class BrowserManager:
             self.page.set_viewport_size({"width": 1920, "height": 1080})
 
         return self.page
+
+    def _find_portal_page(self) -> Page:
+        """기존 브라우저에서 업무포털 관련 페이지를 찾습니다."""
+        try:
+            for context in self.browser.contexts:
+                for page in context.pages:
+                    url = page.url
+                    if any(domain in url for domain in ['eduptl.kr', 'neis.go.kr', 'klef.jbe.go.kr']):
+                        print(f"업무포털 관련 페이지 발견: {url}")
+                        return page
+        except Exception as e:
+            print(f"기존 페이지 검색 중 오류: {e}")
+        return None
+
+    def ensure_valid_connection(self) -> Page:
+        """
+        자동화 함수 실행 전 브라우저 연결 상태를 검증하고 복구합니다.
+        """
+        try:
+            if self.page and not self.page.is_closed():
+                # 페이지가 응답하는지 테스트
+                self.page.evaluate("() => document.readyState")
+                return self.page
+        except Exception as e:
+            print(f"기존 페이지 연결 끊어짐, 재연결 시도: {e}")
+        
+        # 연결이 끊어졌으면 재연결
+        return self.get_page()
 
     def close(self):
         """모든 리소스를 안전하게 종료합니다."""
@@ -75,17 +129,31 @@ def _handle_error(e):
 def _navigate_to_neis() -> Page:
     """업무포털에 로그인하고, '나이스' 버튼을 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다."""
     print("업무포털에 접속하여 나이스로 이동을 시작합니다.")
-    open_eduptl()
-    portal_page = browser_manager.get_page()
     
-    with portal_page.expect_popup() as popup_info:
+    # 브라우저 연결 상태 검증 및 복구
+    portal_page = browser_manager.ensure_valid_connection()
+    
+    # 업무포털에 로그인되어 있는지 확인
+    current_url = portal_page.url
+    if 'lg00_001.do' in current_url:
+        print("로그인이 필요합니다. 로그인을 진행합니다.")
+        open_eduptl()
+        portal_page = browser_manager.get_page()
+    elif 'eduptl.kr' not in current_url:
+        print("업무포털이 아닙니다. 업무포털로 이동합니다.")
+        portal_page.goto(urls['업무포털 메인'])
+        portal_page.wait_for_load_state("networkidle", timeout=30000)
+    
+    # 나이스 링크 클릭하여 새 탭 열기
+    with portal_page.expect_popup(timeout=30000) as popup_info:
         print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
-        # '나이스' 링크가 여러 개 발견되었으므로, 그 중 첫 번째 것을 클릭하도록 .first를 추가합니다.
-        portal_page.get_by_role("link", name="나이스", exact=True).first.click()
+        neis_link = portal_page.get_by_role("link", name="나이스", exact=True).first
+        neis_link.wait_for(state="visible", timeout=30000)
+        neis_link.click()
     
     neis_page = popup_info.value
     print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
-    neis_page.wait_for_load_state("networkidle")
+    neis_page.wait_for_load_state("networkidle", timeout=30000)
     browser_manager.page = neis_page
     return neis_page
 
@@ -93,32 +161,71 @@ def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
     print("로그인 성공 확인 중... (페이지 로딩 대기)")
     
-    # 페이지 로딩 완료 대기
-    page.wait_for_load_state('networkidle', timeout=30000)
-    
-    current_url = page.url
-    print(f"현재 URL: {current_url}")
-    
-    # 로그인 페이지에서 벗어났는지 확인
-    if 'lg00_001.do' not in current_url:
-        print("로그인 성공 (URL 확인)")
-        return
-    
-    # 간단한 대기 후 재확인
-    page.wait_for_timeout(3000)
-    current_url = page.url
-    if 'lg00_001.do' not in current_url:
-        print("로그인 성공 (재확인)")
-        return
-    
-    print("로그인이 완료되지 않았습니다. 수동으로 로그인을 완료해주세요.")
-    messagebox.showinfo("알림", "자동 로그인이 완료되지 않았습니다.\n브라우저에서 수동으로 로그인을 완료한 후 확인을 눌러주세요.")
-    
-    # 사용자가 수동 로그인 완료할 때까지 대기
-    while 'lg00_001.do' in page.url:
-        page.wait_for_timeout(1000)
-    
-    print("로그인 완료 확인됨")
+    try:
+        # 페이지 로딩 완료 대기 (견고한 조건)
+        page.wait_for_load_state('networkidle', timeout=30000)
+        
+        current_url = page.url
+        print(f"현재 URL: {current_url}")
+        
+        # 로그인 페이지에서 벗어났는지 확인
+        if 'lg00_001.do' not in current_url:
+            # 추가 검증: 메인 페이지의 특정 요소가 로드되었는지 확인
+            try:
+                page.wait_for_selector('a[href*="neis"]', timeout=10000)
+                print("로그인 성공 (URL 및 페이지 요소 확인)")
+                return
+            except:
+                print("메인 페이지 요소 로드 대기 중...")
+        
+        # 간단한 대기 후 재확인 (견고한 재시도)
+        for i in range(3):
+            page.wait_for_timeout(3000)
+            current_url = page.url
+            if 'lg00_001.do' not in current_url:
+                try:
+                    page.wait_for_selector('a[href*="neis"]', timeout=5000)
+                    print(f"로그인 성공 (재확인 {i+1}회차)")
+                    return
+                except:
+                    continue
+        
+        print("로그인이 완료되지 않았습니다. 수동으로 로그인을 완료해주세요.")
+        messagebox.showinfo("수동 로그인 안내", 
+                          "브라우저에서 수동으로 로그인을 완료해주세요.\n"
+                          "로그인 완료 후 이 창에서 '확인'을 눌러주세요.\n\n"
+                          "※ 프로그램이 브라우저 상태를 지속적으로 확인하고 있습니다.")
+        
+        # 사용자가 수동 로그인 완료할 때까지 스마트 대기
+        retry_count = 0
+        max_retries = 300  # 5분 최대 대기
+        
+        while 'lg00_001.do' in page.url and retry_count < max_retries:
+            try:
+                page.wait_for_timeout(1000)
+                # 페이지 응답성 확인
+                page.evaluate("() => document.readyState")
+                retry_count += 1
+                
+                # 30초마다 상태 체크 메시지
+                if retry_count % 30 == 0:
+                    print(f"수동 로그인 대기 중... ({retry_count}초 경과)")
+                    
+            except Exception as e:
+                print(f"페이지 상태 확인 중 오류, 재연결 시도: {e}")
+                page = browser_manager.ensure_valid_connection()
+        
+        if retry_count >= max_retries:
+            raise TimeoutError("수동 로그인 대기 시간이 초과되었습니다.")
+        
+        # 최종 검증
+        page.wait_for_load_state('networkidle', timeout=10000)
+        print("수동 로그인 완료 확인됨")
+        
+    except Exception as e:
+        print(f"로그인 확인 중 오류: {e}")
+        messagebox.showerror("로그인 오류", f"로그인 확인 중 오류가 발생했습니다: {e}")
+        raise
 
 def open_eduptl():
     """
