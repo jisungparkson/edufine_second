@@ -126,35 +126,75 @@ def _handle_error(e):
     browser_manager.close()
 
 def _navigate_to_neis() -> Page:
-    """업무포털에 로그인하고, '나이스' 버튼을 클릭하여 새 탭으로 열린 나이스 페이지를 반환합니다."""
-    print("업무포털에 접속하여 나이스로 이동을 시작합니다.")
+    """나이스 4단계 리디렉션 워크플로우를 완벽하게 처리하는 함수
+    
+    1단계: 프로그램이 나이스 사이트로 직접 이동
+    2단계: 나이스가 업무포털 로그인 페이지로 자동 리디렉션
+    3단계: 사용자가 수동으로 로그인 수행
+    4단계: 로그인 성공 후 나이스로 자동 복귀
+    """
+    print("나이스 4단계 리디렉션 워크플로우를 시작합니다...")
     
     # 브라우저 연결 상태 검증 및 복구
-    portal_page = browser_manager.ensure_valid_connection()
+    page = browser_manager.ensure_valid_connection()
+    page.bring_to_front()
     
-    # 업무포털에 로그인되어 있는지 확인
-    current_url = portal_page.url
-    if 'lg00_001.do' in current_url:
-        print("로그인이 필요합니다. 로그인을 진행합니다.")
-        open_eduptl()
-        portal_page = browser_manager.get_page()
-    elif 'eduptl.kr' not in current_url:
-        print("업무포털이 아닙니다. 업무포털로 이동합니다.")
-        portal_page.goto(urls['업무포털 메인'])
-        portal_page.wait_for_load_state("networkidle", timeout=30000)
+    # 1단계: 나이스 사이트로 직접 이동
+    print("1단계: 나이스 사이트로 이동합니다...")
+    page.goto(urls['나이스'])
     
-    # 나이스 링크 클릭하여 새 탭 열기
-    with portal_page.expect_popup(timeout=30000) as popup_info:
-        print("업무포털 메인 화면에서 '나이스' 링크를 클릭합니다...")
-        neis_link = portal_page.get_by_role("link", name="나이스", exact=True).first
-        neis_link.wait_for(state="visible", timeout=30000)
-        neis_link.click()
+    # 2단계: 업무포털 로그인 페이지로 자동 리디렉션 대기
+    print("2단계: 업무포털 로그인 페이지로의 자동 리디렉션을 감지합니다...")
+    try:
+        # 업무포털 로그인 URL이 포함된 페이지로 리디렉션될 때까지 대기
+        page.wait_for_url("**/bpm_lgn_lg00_001.do**", timeout=30000)
+        print("✓ 업무포털 로그인 페이지로 성공적으로 리디렉션되었습니다.")
+    except TimeoutError:
+        # 리디렉션이 발생하지 않았을 경우, 현재 URL 확인
+        current_url = page.url
+        if 'lg00_001.do' in current_url:
+            print("✓ 이미 업무포털 로그인 페이지에 있습니다.")
+        elif 'neis.go.kr' in current_url:
+            print("✓ 이미 나이스에 로그인되어 있습니다.")
+            browser_manager.page = page
+            return page
+        else:
+            raise Exception(f"예상된 리디렉션이 발생하지 않았습니다. 현재 URL: {current_url}")
     
-    neis_page = popup_info.value
-    print("새 탭에서 나이스 페이지가 열렸습니다. 로딩을 기다립니다...")
-    neis_page.wait_for_load_state("networkidle", timeout=30000)
-    browser_manager.page = neis_page
-    return neis_page
+    # 페이지 로딩 완료 대기
+    page.wait_for_load_state("networkidle", timeout=30000)
+    
+    # 3단계: 사용자에게 수동 로그인 안내
+    print("3단계: 사용자 수동 로그인 단계...")
+    messagebox.showinfo("나이스 로그인 안내", 
+                      "나이스 접속을 위해 업무포털 로그인이 필요합니다.\n\n"
+                      "브라우저에서 수동으로 로그인을 완료해주세요.\n"
+                      "로그인 완료 후 자동으로 나이스 페이지로 이동됩니다.\n\n"
+                      "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
+    
+    # 4단계: 로그인 완료 후 나이스로 자동 복귀 대기
+    print("4단계: 로그인 완료 후 나이스로의 자동 복귀를 대기합니다...")
+    try:
+        # 나이스 URL로 다시 돌아올 때까지 대기 (최대 3분)
+        page.wait_for_url("**/neis.go.kr/**", timeout=180000)
+        print("✓ 나이스 페이지로 성공적으로 복귀했습니다.")
+    except TimeoutError:
+        # 타임아웃 발생 시 현재 상태 확인
+        current_url = page.url
+        if 'neis.go.kr' in current_url:
+            print("✓ 나이스 페이지에 있습니다.")
+        elif 'lg00_001.do' in current_url:
+            raise TimeoutError("로그인이 완료되지 않았습니다. 브라우저에서 로그인을 완료해주세요.")
+        else:
+            raise TimeoutError(f"예상된 나이스 복귀가 발생하지 않았습니다. 현재 URL: {current_url}")
+    
+    # 최종 페이지 로딩 완료 확인
+    page.wait_for_load_state("networkidle", timeout=30000)
+    print("나이스 페이지에 성공적으로 접속했습니다.")
+    
+    # 브라우저 매니저의 현재 페이지 업데이트
+    browser_manager.page = page
+    return page
 
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
@@ -307,9 +347,44 @@ def neis_class_hakjjong():
     """학기말 종합의견(교과) 메뉴로 이동"""
     try:
         page = _navigate_to_neis()
-             
+        
+        print("나이스 메뉴 탐색을 시작합니다: 교과담임 > 성적 > 학생평가 > 학기말종합의견")
         neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
+        
         messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
+    except Exception as e:
+        _handle_error(e)
+
+def neis_class_behavior():
+    """행동특성 및 종합의견 메뉴로 이동 (자동 접속)"""
+    try:
+        page = _navigate_to_neis()
+        
+        print("나이스 메뉴 탐색을 시작합니다: 학급담임 > 학생생활 > 행동특성및종합의견 > 행동특성및종합의견")
+        neis_go_menu(page, '학급담임', '학생생활', '행동특성및종합의견', '행동특성및종합의견')
+        
+        messagebox.showinfo("완료", "행동특성 및 종합의견 메뉴로 이동했습니다.")
+    except Exception as e:
+        _handle_error(e)
+
+def neis_class_comprehensive():
+    """학기말 종합의견(학급) 메뉴로 이동 (자동 접속)"""
+    try:
+        page = _navigate_to_neis()
+        
+        print("나이스 메뉴 탐색을 시작합니다: 학급담임 > 성적 > 학생평가 > 학기말종합의견")
+        neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
+        
+        messagebox.showinfo("완료", "학기말 종합의견(학급) 메뉴로 이동했습니다.")
+    except Exception as e:
+        _handle_error(e)
+
+def navigate_to_neis_only():
+    """나이스 메인 페이지로만 이동 (자동 접속)"""
+    try:
+        page = _navigate_to_neis()
+        
+        messagebox.showinfo("완료", "나이스 메인 페이지 접속이 완료되었습니다.")
     except Exception as e:
         _handle_error(e)
 
