@@ -314,66 +314,71 @@ def neis_class_hakjjong():
         _handle_error(e)
 
 def navigate_to_edufine():
-    """업무포털에서 K-에듀파인으로 이동하는 함수"""
+    """K-에듀파인 4단계 리디렉션 워크플로우를 완벽하게 처리하는 함수
+    
+    1단계: 프로그램이 K-에듀파인 사이트로 직접 이동
+    2단계: K-에듀파인이 업무포털 로그인 페이지로 자동 리디렉션
+    3단계: 사용자가 수동으로 로그인 수행
+    4단계: 로그인 성공 후 K-에듀파인으로 자동 복귀
+    """
     try:
+        print("K-에듀파인 4단계 리디렉션 워크플로우를 시작합니다...")
+        
         # 브라우저 연결 상태 검증 및 복구
-        portal_page = browser_manager.ensure_valid_connection()
+        page = browser_manager.ensure_valid_connection()
+        page.bring_to_front()
         
-        # 업무포털에 로그인되어 있는지 확인
-        current_url = portal_page.url
-        if 'lg00_001.do' in current_url:
-            print("로그인이 필요합니다. 로그인을 진행합니다.")
-            open_eduptl()
-            portal_page = browser_manager.get_page()
-        elif 'eduptl.kr' not in current_url:
-            print("업무포털이 아닙니다. 업무포털로 이동합니다.")
-            portal_page.goto(urls['업무포털 메인'])
-            portal_page.wait_for_load_state("networkidle", timeout=30000)
+        # 1단계: K-에듀파인 사이트로 직접 이동
+        print("1단계: K-에듀파인 사이트로 이동합니다...")
+        page.goto(urls['에듀파인'])
         
-        print("업무포털 메인 화면에서 'K-에듀파인' 링크를 찾습니다...")
+        # 2단계: 업무포털 로그인 페이지로 자동 리디렉션 대기
+        print("2단계: 업무포털 로그인 페이지로의 자동 리디렉션을 감지합니다...")
+        try:
+            # 업무포털 로그인 URL이 포함된 페이지로 리디렉션될 때까지 대기
+            page.wait_for_url("**/bpm_lgn_lg00_001.do**", timeout=30000)
+            print("✓ 업무포털 로그인 페이지로 성공적으로 리디렉션되었습니다.")
+        except TimeoutError:
+            # 리디렉션이 발생하지 않았을 경우, 현재 URL 확인
+            current_url = page.url
+            if 'lg00_001.do' in current_url:
+                print("✓ 이미 업무포털 로그인 페이지에 있습니다.")
+            else:
+                raise Exception(f"예상된 리디렉션이 발생하지 않았습니다. 현재 URL: {current_url}")
         
-        # K-에듀파인 링크 찾기 및 클릭
-        with portal_page.expect_popup(timeout=30000) as popup_info:
-            # 여러 가지 방법으로 에듀파인 링크를 시도해봅니다
-            edufine_link = None
-            
-            # 방법 1: 텍스트로 찾기
-            try:
-                edufine_link = portal_page.get_by_text("K-에듀파인").or_(portal_page.get_by_text("에듀파인"))
-                edufine_link.wait_for(state="visible", timeout=10000)
-                print("텍스트로 K-에듀파인 링크를 찾았습니다.")
-            except:
-                pass
-            
-            # 방법 2: href 속성으로 찾기
-            if not edufine_link or not edufine_link.is_visible():
-                try:
-                    edufine_link = portal_page.locator(f"a[href*='klef.jbe.go.kr']")
-                    edufine_link.wait_for(state="visible", timeout=10000)
-                    print("href 속성으로 K-에듀파인 링크를 찾았습니다.")
-                except:
-                    pass
-            
-            # 방법 3: onclick 속성으로 찾기
-            if not edufine_link or not edufine_link.is_visible():
-                try:
-                    edufine_link = portal_page.locator(f"a[onclick*='klef.jbe.go.kr']")
-                    edufine_link.wait_for(state="visible", timeout=10000)
-                    print("onclick 속성으로 K-에듀파인 링크를 찾았습니다.")
-                except:
-                    raise Exception("K-에듀파인 링크를 찾을 수 없습니다. 업무포털 메인 페이지에 K-에듀파인 링크가 있는지 확인해주세요.")
-            
-            # 링크 클릭
-            print("K-에듀파인 링크를 클릭합니다...")
-            edufine_link.click()
+        # 페이지 로딩 완료 대기
+        page.wait_for_load_state("networkidle", timeout=30000)
         
-        # 새 탭에서 열린 에듀파인 페이지 처리
-        edufine_page = popup_info.value
-        print("새 탭에서 K-에듀파인 페이지가 열렸습니다. 로딩을 기다립니다...")
-        edufine_page.wait_for_load_state("networkidle", timeout=30000)
+        # 3단계: 사용자에게 수동 로그인 안내
+        print("3단계: 사용자 수동 로그인 단계...")
+        messagebox.showinfo("K-에듀파인 로그인 안내", 
+                          "K-에듀파인 접속을 위해 업무포털 로그인이 필요합니다.\n\n"
+                          "브라우저에서 수동으로 로그인을 완료해주세요.\n"
+                          "로그인 완료 후 자동으로 K-에듀파인 페이지로 이동됩니다.\n\n"
+                          "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
         
-        # 브라우저 매니저의 현재 페이지를 에듀파인 페이지로 설정
-        browser_manager.page = edufine_page
+        # 4단계: 로그인 완료 후 K-에듀파인으로 자동 복귀 대기
+        print("4단계: 로그인 완료 후 K-에듀파인으로의 자동 복귀를 대기합니다...")
+        try:
+            # K-에듀파인 URL로 다시 돌아올 때까지 대기 (최대 3분)
+            page.wait_for_url("**/klef.jbe.go.kr/**", timeout=180000)
+            print("✓ K-에듀파인 페이지로 성공적으로 복귀했습니다.")
+        except TimeoutError:
+            # 타임아웃 발생 시 현재 상태 확인
+            current_url = page.url
+            if 'klef.jbe.go.kr' in current_url:
+                print("✓ K-에듀파인 페이지에 있습니다.")
+            elif 'lg00_001.do' in current_url:
+                raise TimeoutError("로그인이 완료되지 않았습니다. 브라우저에서 로그인을 완료해주세요.")
+            else:
+                raise TimeoutError(f"예상된 K-에듀파인 복귀가 발생하지 않았습니다. 현재 URL: {current_url}")
+        
+        # 최종 페이지 로딩 완료 확인
+        page.wait_for_load_state("networkidle", timeout=30000)
+        print("K-에듀파인 페이지에 성공적으로 접속했습니다.")
+        
+        # 브라우저 매니저의 현재 페이지 업데이트
+        browser_manager.page = page
         
         messagebox.showinfo("완료", "K-에듀파인 접속이 완료되었습니다.")
         
