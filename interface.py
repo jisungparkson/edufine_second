@@ -8,7 +8,7 @@ import pyautogui
 import pyperclip
 from tkinter import messagebox
 from btn_commands import (
-    open_eduptl, do_login_only, neis_class_hakjjong, browser_manager
+    open_eduptl, do_login_only, neis_class_hakjjong, navigate_to_edufine, browser_manager
 )
 
 # --- UI 기본 설정 ---
@@ -234,6 +234,7 @@ class App(customtkinter.CTk):
         button_configs = [
             {"text": "업무포털 접속", "command": self.run_open_eduptl},
             {"text": "업무포털 로그인", "command": self.run_do_login_only},
+            {"text": "K-에듀파인 접속", "command": self.run_navigate_to_edufine},
             {"text": "학기말 종합의견 (교과)", "command": self.run_neis_class_hakjjong}
         ]
         
@@ -429,6 +430,9 @@ class App(customtkinter.CTk):
 
     def run_do_login_only(self):
         self.run_in_thread_with_log(do_login_only, "업무포털 로그인")
+
+    def run_navigate_to_edufine(self):
+        self.run_in_thread_with_log(navigate_to_edufine, "K-에듀파인 접속")
 
     def run_neis_class_hakjjong(self):
         self.run_in_thread_with_log(neis_class_hakjjong, "학기말 종합의견 (교과)")

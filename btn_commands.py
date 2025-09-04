@@ -312,3 +312,70 @@ def neis_class_hakjjong():
         messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
     except Exception as e:
         _handle_error(e)
+
+def navigate_to_edufine():
+    """업무포털에서 K-에듀파인으로 이동하는 함수"""
+    try:
+        # 브라우저 연결 상태 검증 및 복구
+        portal_page = browser_manager.ensure_valid_connection()
+        
+        # 업무포털에 로그인되어 있는지 확인
+        current_url = portal_page.url
+        if 'lg00_001.do' in current_url:
+            print("로그인이 필요합니다. 로그인을 진행합니다.")
+            open_eduptl()
+            portal_page = browser_manager.get_page()
+        elif 'eduptl.kr' not in current_url:
+            print("업무포털이 아닙니다. 업무포털로 이동합니다.")
+            portal_page.goto(urls['업무포털 메인'])
+            portal_page.wait_for_load_state("networkidle", timeout=30000)
+        
+        print("업무포털 메인 화면에서 'K-에듀파인' 링크를 찾습니다...")
+        
+        # K-에듀파인 링크 찾기 및 클릭
+        with portal_page.expect_popup(timeout=30000) as popup_info:
+            # 여러 가지 방법으로 에듀파인 링크를 시도해봅니다
+            edufine_link = None
+            
+            # 방법 1: 텍스트로 찾기
+            try:
+                edufine_link = portal_page.get_by_text("K-에듀파인").or_(portal_page.get_by_text("에듀파인"))
+                edufine_link.wait_for(state="visible", timeout=10000)
+                print("텍스트로 K-에듀파인 링크를 찾았습니다.")
+            except:
+                pass
+            
+            # 방법 2: href 속성으로 찾기
+            if not edufine_link or not edufine_link.is_visible():
+                try:
+                    edufine_link = portal_page.locator(f"a[href*='klef.jbe.go.kr']")
+                    edufine_link.wait_for(state="visible", timeout=10000)
+                    print("href 속성으로 K-에듀파인 링크를 찾았습니다.")
+                except:
+                    pass
+            
+            # 방법 3: onclick 속성으로 찾기
+            if not edufine_link or not edufine_link.is_visible():
+                try:
+                    edufine_link = portal_page.locator(f"a[onclick*='klef.jbe.go.kr']")
+                    edufine_link.wait_for(state="visible", timeout=10000)
+                    print("onclick 속성으로 K-에듀파인 링크를 찾았습니다.")
+                except:
+                    raise Exception("K-에듀파인 링크를 찾을 수 없습니다. 업무포털 메인 페이지에 K-에듀파인 링크가 있는지 확인해주세요.")
+            
+            # 링크 클릭
+            print("K-에듀파인 링크를 클릭합니다...")
+            edufine_link.click()
+        
+        # 새 탭에서 열린 에듀파인 페이지 처리
+        edufine_page = popup_info.value
+        print("새 탭에서 K-에듀파인 페이지가 열렸습니다. 로딩을 기다립니다...")
+        edufine_page.wait_for_load_state("networkidle", timeout=30000)
+        
+        # 브라우저 매니저의 현재 페이지를 에듀파인 페이지로 설정
+        browser_manager.page = edufine_page
+        
+        messagebox.showinfo("완료", "K-에듀파인 접속이 완료되었습니다.")
+        
+    except Exception as e:
+        _handle_error(e)
