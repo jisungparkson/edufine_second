@@ -235,11 +235,11 @@ class App(customtkinter.CTk):
         button_configs = [
             {"text": "업무포털 접속", "command": self.run_open_eduptl},
             {"text": "업무포털 로그인", "command": self.run_do_login_only},
-            {"text": "K-에듀파인 (자동 접속)", "command": self.run_navigate_to_edufine},
-            {"text": "나이스 메인 (자동 접속)", "command": self.run_navigate_to_neis_only},
-            {"text": "행동특성 (자동 접속)", "command": self.run_neis_class_behavior},
-            {"text": "학급 종합의견 (자동 접속)", "command": self.run_neis_class_comprehensive},
-            {"text": "교과 종합의견 (자동 접속)", "command": self.run_neis_class_hakjjong}
+            {"text": "K-에듀파인", "command": self.run_navigate_to_edufine},
+            {"text": "나이스 메인", "command": self.run_navigate_to_neis_only},
+            {"text": "행동특성 및 종합의견", "command": self.run_neis_class_behavior},
+            {"text": "학급 종합의견", "command": self.run_neis_class_comprehensive},
+            {"text": "교과 종합의견", "command": self.run_neis_class_hakjjong}
         ]
         
         for config in button_configs:
@@ -436,19 +436,19 @@ class App(customtkinter.CTk):
         self.run_in_thread_with_log(do_login_only, "업무포털 로그인")
 
     def run_navigate_to_edufine(self):
-        self.run_in_thread_with_log(navigate_to_edufine, "K-에듀파인 (자동 접속)")
+        self.run_in_thread_with_log(navigate_to_edufine, "K-에듀파인")
 
     def run_navigate_to_neis_only(self):
-        self.run_in_thread_with_log(navigate_to_neis_only, "나이스 메인 (자동 접속)")
+        self.run_in_thread_with_log(navigate_to_neis_only, "나이스 메인")
 
     def run_neis_class_behavior(self):
-        self.run_in_thread_with_log(neis_class_behavior, "행동특성 (자동 접속)")
+        self.run_in_thread_with_log(neis_class_behavior, "행동특성 및 종합의견")
 
     def run_neis_class_comprehensive(self):
-        self.run_in_thread_with_log(neis_class_comprehensive, "학급 종합의견 (자동 접속)")
+        self.run_in_thread_with_log(neis_class_comprehensive, "학급 종합의견")
 
     def run_neis_class_hakjjong(self):
-        self.run_in_thread_with_log(neis_class_hakjjong, "교과 종합의견 (자동 접속)")
+        self.run_in_thread_with_log(neis_class_hakjjong, "교과 종합의견")
 
     def on_closing(self):
         """창이 닫힐 때 호출될 함수 - 브라우저 리소스를 안전하게 정리"""
