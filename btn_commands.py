@@ -13,7 +13,13 @@ class BrowserManager:
         self.browser: Browser = None
         self.page: Page = None
         self.debug_port = 9222
+        self.is_closing = False  # 종료 상태 플래그
         print("BrowserManager가 준비되었습니다.")
+
+    def set_closing_flag(self):
+        """프로그램 종료가 시작되었음을 알립니다."""
+        self.is_closing = True
+        print("BrowserManager: 프로그램 종료 플래그가 설정되었습니다.")
 
     def get_page(self) -> Page:
         """
@@ -121,6 +127,11 @@ browser_manager = BrowserManager()
 
 def _handle_error(e):
     """오류 처리 시, 현장 감독을 통해 안전하게 모든 것을 종료합니다."""
+    # 프로그램 종료 중이라면 오류를 보고하지 않고 조용히 종료
+    if browser_manager.is_closing:
+        print("프로그램 종료 중 발생한 예상된 오류입니다. 무시합니다.")
+        return
+    
     error_message = f"{type(e).__name__}: {e}"
     messagebox.showerror("오류 발생", error_message)
     browser_manager.close()

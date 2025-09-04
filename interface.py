@@ -452,6 +452,9 @@ class App(customtkinter.CTk):
 
     def on_closing(self):
         """창이 닫힐 때 호출될 함수 - 브라우저 리소스를 안전하게 정리"""
+        # 가장 먼저 종료 플래그를 설정합니다
+        browser_manager.set_closing_flag()
+        
         if self.automation_running:
             self.stop_automation = True
             time.sleep(0.2)  # 자동화 중지 대기
