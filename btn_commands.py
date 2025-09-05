@@ -354,41 +354,8 @@ def do_login_only():
     except Exception as e:
         _handle_error(e)
 
-def neis_class_hakjjong():
-    """학기말 종합의견(교과) 메뉴로 이동"""
-    try:
-        page = _navigate_to_neis()
-        
-        print("나이스 메뉴 탐색을 시작합니다: 교과담임 > 성적 > 학생평가 > 학기말종합의견")
-        neis_go_menu(page, '교과담임', '성적', '학생평가', '학기말종합의견')
-        
-        messagebox.showinfo("완료", "학기말 종합의견(교과) 메뉴로 이동했습니다.")
-    except Exception as e:
-        _handle_error(e)
 
-def neis_class_behavior():
-    """행동특성 및 종합의견 메뉴로 이동 (자동 접속)"""
-    try:
-        page = _navigate_to_neis()
-        
-        print("나이스 메뉴 탐색을 시작합니다: 학급담임 > 학생생활 > 행동특성및종합의견 > 행동특성및종합의견")
-        neis_go_menu(page, '학급담임', '학생생활', '행동특성및종합의견', '행동특성및종합의견')
-        
-        messagebox.showinfo("완료", "행동특성 및 종합의견 메뉴로 이동했습니다.")
-    except Exception as e:
-        _handle_error(e)
 
-def neis_class_comprehensive():
-    """학기말 종합의견(학급) 메뉴로 이동 (자동 접속)"""
-    try:
-        page = _navigate_to_neis()
-        
-        print("나이스 메뉴 탐색을 시작합니다: 학급담임 > 성적 > 학생평가 > 학기말종합의견")
-        neis_go_menu(page, '학급담임', '성적', '학생평가', '학기말종합의견')
-        
-        messagebox.showinfo("완료", "학기말 종합의견(학급) 메뉴로 이동했습니다.")
-    except Exception as e:
-        _handle_error(e)
 
 def navigate_to_neis_only():
     """나이스 메인 페이지로만 이동 (자동 접속)"""
