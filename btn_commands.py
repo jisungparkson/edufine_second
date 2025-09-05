@@ -136,76 +136,177 @@ def _handle_error(e):
     messagebox.showerror("오류 발생", error_message)
     browser_manager.close()
 
-def _navigate_to_neis() -> Page:
-    """나이스 4단계 리디렉션 워크플로우를 완벽하게 처리하는 함수
-    
-    1단계: 프로그램이 나이스 사이트로 직접 이동
-    2단계: 나이스가 업무포털 로그인 페이지로 자동 리디렉션
-    3단계: 사용자가 수동으로 로그인 수행
-    4단계: 로그인 성공 후 나이스로 자동 복귀
+
+def _master_navigate_to_service(service_name: str) -> Page:
     """
-    print("나이스 4단계 리디렉션 워크플로우를 시작합니다...")
+    마스터 내비게이터: 모든 가능한 사용자 상태를 지능적으로 판단하여 
+    올바른 서비스로 안전하게 이동시키는 통합 내비게이션 함수
+    
+    Args:
+        service_name: '나이스' 또는 '에듀파인'
+    
+    Returns:
+        Page: 목표 서비스의 페이지 객체
+    """
+    print(f"마스터 내비게이터: {service_name} 서비스로 이동을 시작합니다...")
     
     # 브라우저 연결 상태 검증 및 복구
     page = browser_manager.ensure_valid_connection()
     page.bring_to_front()
     
-    # 1단계: 나이스 사이트로 직접 이동
-    print("1단계: 나이스 사이트로 이동합니다...")
-    page.goto(urls['나이스'])
+    # 1단계: 현재 상태 분석
+    current_url = page.url
+    current_state = _analyze_current_state(current_url)
+    print(f"현재 상태 분석 결과: {current_state} (URL: {current_url})")
     
-    # 2단계: 업무포털 로그인 페이지로 자동 리디렉션 대기
-    print("2단계: 업무포털 로그인 페이지로의 자동 리디렉션을 감지합니다...")
+    # 2단계: 경로 탐색 및 실행
+    target_domain_key = '나이스' if service_name == '나이스' else '에듀파인'
+    target_domain = 'neis.go.kr' if service_name == '나이스' else 'klef.jbe.go.kr'
+    
+    # Case 1: 이미 목표에 도착한 경우
+    if current_state == target_domain_key.lower():
+        print(f"✓ 이미 {service_name}에 있습니다. 작업을 완료합니다.")
+        browser_manager.page = page
+        return page
+    
+    # Case 2: 업무포털 메인에 있는 경우
+    elif current_state == 'portal_main':
+        print(f"업무포털 메인에서 {service_name}로 이동합니다...")
+        return _navigate_from_portal_main(page, service_name, target_domain)
+    
+    # Case 3: 다른 서비스에 있는 경우
+    elif current_state in ['neis', 'edufine']:
+        print(f"다른 서비스에서 {service_name}로 전환합니다...")
+        # 업무포털 메인으로 먼저 이동
+        page.goto(urls['업무포털 메인'])
+        page.wait_for_load_state("networkidle", timeout=30000)
+        return _navigate_from_portal_main(page, service_name, target_domain)
+    
+    # Case 4: 로그인하지 않은 경우
+    elif current_state == 'login':
+        print(f"로그인이 필요합니다. {service_name} 초기 로그인 워크플로우를 시작합니다...")
+        return _initial_login_workflow(page, service_name, target_domain)
+    
+    # Case 5: 알 수 없는 상태
+    else:
+        print(f"알 수 없는 상태입니다. {service_name} 직접 접속을 시도합니다...")
+        return _initial_login_workflow(page, service_name, target_domain)
+
+
+def _analyze_current_state(url: str) -> str:
+    """현재 페이지 URL을 분석하여 사용자 상태를 판단합니다."""
+    if 'lg00_001.do' in url:
+        return 'login'
+    elif 'eduptl.kr' in url and 'lg00_001.do' not in url:
+        return 'portal_main'
+    elif 'neis.go.kr' in url:
+        return 'neis'
+    elif 'klef.jbe.go.kr' in url:
+        return 'edufine'
+    else:
+        return 'unknown'
+
+
+def _navigate_from_portal_main(page: Page, service_name: str, target_domain: str) -> Page:
+    """업무포털 메인에서 목표 서비스로 이동합니다."""
     try:
-        # 업무포털 로그인 URL이 포함된 페이지로 리디렉션될 때까지 대기
-        page.wait_for_url("**/bpm_lgn_lg00_001.do**", timeout=30000)
-        print("✓ 업무포털 로그인 페이지로 성공적으로 리디렉션되었습니다.")
-    except TimeoutError:
-        # 리디렉션이 발생하지 않았을 경우, 현재 URL 확인
-        current_url = page.url
-        if 'lg00_001.do' in current_url:
-            print("✓ 이미 업무포털 로그인 페이지에 있습니다.")
-        elif 'neis.go.kr' in current_url:
-            print("✓ 이미 나이스에 로그인되어 있습니다.")
-            browser_manager.page = page
-            return page
+        # 서비스별 링크 찾기 및 클릭
+        if service_name == '나이스':
+            link_selector = 'a[href*="neis"]'
+        else:  # 에듀파인
+            link_selector = 'a[href*="klef"]'
+        
+        print(f"{service_name} 링크를 찾아 클릭합니다...")
+        link = page.locator(link_selector).first
+        expect(link).to_be_visible(timeout=15000)
+        
+        # 링크 클릭 (새 탭이 열릴 수 있음)
+        link.click()
+        page.wait_for_timeout(3000)  # 페이지 전환 대기
+        
+        # 현재 페이지 또는 새 탭에서 목표 도메인 확인
+        current_pages = page.context.pages
+        target_page = None
+        
+        for p in current_pages:
+            if target_domain in p.url:
+                target_page = p
+                break
+        
+        if target_page:
+            target_page.bring_to_front()
+            target_page.wait_for_load_state("networkidle", timeout=30000)
+            print(f"✓ {service_name}로 성공적으로 이동했습니다.")
+            browser_manager.page = target_page
+            return target_page
         else:
-            raise Exception(f"예상된 리디렉션이 발생하지 않았습니다. 현재 URL: {current_url}")
+            raise Exception(f"{service_name} 페이지를 찾을 수 없습니다.")
     
-    # 페이지 로딩 완료 대기
-    page.wait_for_load_state("networkidle", timeout=30000)
-    
-    # 3단계: 사용자에게 수동 로그인 안내
-    print("3단계: 사용자 수동 로그인 단계...")
-    messagebox.showinfo("나이스 로그인 안내", 
-                      "나이스 접속을 위해 업무포털 로그인이 필요합니다.\n\n"
-                      "브라우저에서 수동으로 로그인을 완료해주세요.\n"
-                      "로그인 완료 후 자동으로 나이스 페이지로 이동됩니다.\n\n"
-                      "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
-    
-    # 4단계: 로그인 완료 후 나이스로 자동 복귀 대기
-    print("4단계: 로그인 완료 후 나이스로의 자동 복귀를 대기합니다...")
+    except Exception as e:
+        print(f"포털에서 {service_name}로 이동 중 오류: {e}")
+        # 실패 시 초기 로그인 워크플로우로 fallback
+        return _initial_login_workflow(page, service_name, target_domain)
+
+
+def _initial_login_workflow(page: Page, service_name: str, target_domain: str) -> Page:
+    """초기 로그인이 필요한 경우의 워크플로우를 처리합니다."""
     try:
-        # 나이스 URL로 다시 돌아올 때까지 대기 (최대 3분)
-        page.wait_for_url("**/neis.go.kr/**", timeout=180000)
-        print("✓ 나이스 페이지로 성공적으로 복귀했습니다.")
-    except TimeoutError:
-        # 타임아웃 발생 시 현재 상태 확인
-        current_url = page.url
-        if 'neis.go.kr' in current_url:
-            print("✓ 나이스 페이지에 있습니다.")
-        elif 'lg00_001.do' in current_url:
-            raise TimeoutError("로그인이 완료되지 않았습니다. 브라우저에서 로그인을 완료해주세요.")
-        else:
-            raise TimeoutError(f"예상된 나이스 복귀가 발생하지 않았습니다. 현재 URL: {current_url}")
-    
-    # 최종 페이지 로딩 완료 확인
-    page.wait_for_load_state("networkidle", timeout=30000)
-    print("나이스 페이지에 성공적으로 접속했습니다.")
-    
-    # 브라우저 매니저의 현재 페이지 업데이트
-    browser_manager.page = page
-    return page
+        # 1단계: 목표 서비스 URL로 직접 이동
+        service_url = urls['나이스'] if service_name == '나이스' else urls['에듀파인']
+        print(f"1단계: {service_name} 사이트로 직접 이동합니다...")
+        page.goto(service_url)
+        
+        # 2단계: 로그인 페이지로 리디렉션 대기
+        print("2단계: 로그인 페이지로의 리디렉션을 감지합니다...")
+        try:
+            page.wait_for_url("**/bpm_lgn_lg00_001.do**", timeout=30000)
+            print("✓ 로그인 페이지로 리디렉션되었습니다.")
+        except TimeoutError:
+            current_url = page.url
+            if 'lg00_001.do' in current_url:
+                print("✓ 이미 로그인 페이지에 있습니다.")
+            elif target_domain in current_url:
+                print(f"✓ 이미 {service_name}에 로그인되어 있습니다.")
+                browser_manager.page = page
+                return page
+            else:
+                raise Exception(f"예상된 리디렉션이 발생하지 않았습니다. 현재 URL: {current_url}")
+        
+        page.wait_for_load_state("networkidle", timeout=30000)
+        
+        # 3단계: 사용자 수동 로그인 안내
+        print("3단계: 사용자 수동 로그인 안내...")
+        messagebox.showinfo(f"{service_name} 로그인 안내", 
+                          f"{service_name} 접속을 위해 업무포털 로그인이 필요합니다.\n\n"
+                          "브라우저에서 수동으로 로그인을 완료해주세요.\n"
+                          f"로그인 완료 후 자동으로 {service_name} 페이지로 이동됩니다.\n\n"
+                          "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
+        
+        # 4단계: 목표 서비스로 복귀 대기
+        print(f"4단계: 로그인 완료 후 {service_name}로의 복귀를 대기합니다...")
+        try:
+            page.wait_for_url(f"**/{target_domain}/**", timeout=180000)
+            print(f"✓ {service_name} 페이지로 성공적으로 복귀했습니다.")
+        except TimeoutError:
+            current_url = page.url
+            if target_domain in current_url:
+                print(f"✓ {service_name} 페이지에 있습니다.")
+            elif 'lg00_001.do' in current_url:
+                raise TimeoutError("로그인이 완료되지 않았습니다. 브라우저에서 로그인을 완료해주세요.")
+            else:
+                raise TimeoutError(f"예상된 {service_name} 복귀가 발생하지 않았습니다. 현재 URL: {current_url}")
+        
+        # 5단계: 최종 확인
+        page.wait_for_load_state("networkidle", timeout=30000)
+        print(f"{service_name} 페이지에 성공적으로 접속했습니다.")
+        
+        browser_manager.page = page
+        return page
+        
+    except Exception as e:
+        print(f"{service_name} 초기 로그인 워크플로우 중 오류: {e}")
+        raise
+
 
 def _wait_for_login_success(page: Page):
     """로그인이 성공했는지 확인하는 공통 함수"""
@@ -358,82 +459,19 @@ def do_login_only():
 
 
 def navigate_to_neis_only():
-    """나이스 메인 페이지로만 이동 (자동 접속)"""
+    """나이스 메인 페이지로 이동 (마스터 내비게이터 사용)"""
     try:
-        page = _navigate_to_neis()
-        
+        _master_navigate_to_service('나이스')
         messagebox.showinfo("완료", "나이스 메인 페이지 접속이 완료되었습니다.")
     except Exception as e:
         _handle_error(e)
 
+
 def navigate_to_edufine():
-    """K-에듀파인 4단계 리디렉션 워크플로우를 완벽하게 처리하는 함수
-    
-    1단계: 프로그램이 K-에듀파인 사이트로 직접 이동
-    2단계: K-에듀파인이 업무포털 로그인 페이지로 자동 리디렉션
-    3단계: 사용자가 수동으로 로그인 수행
-    4단계: 로그인 성공 후 K-에듀파인으로 자동 복귀
-    """
+    """K-에듀파인으로 이동 (마스터 내비게이터 사용)"""
     try:
-        print("K-에듀파인 4단계 리디렉션 워크플로우를 시작합니다...")
-        
-        # 브라우저 연결 상태 검증 및 복구
-        page = browser_manager.ensure_valid_connection()
-        page.bring_to_front()
-        
-        # 1단계: K-에듀파인 사이트로 직접 이동
-        print("1단계: K-에듀파인 사이트로 이동합니다...")
-        page.goto(urls['에듀파인'])
-        
-        # 2단계: 업무포털 로그인 페이지로 자동 리디렉션 대기
-        print("2단계: 업무포털 로그인 페이지로의 자동 리디렉션을 감지합니다...")
-        try:
-            # 업무포털 로그인 URL이 포함된 페이지로 리디렉션될 때까지 대기
-            page.wait_for_url("**/bpm_lgn_lg00_001.do**", timeout=30000)
-            print("✓ 업무포털 로그인 페이지로 성공적으로 리디렉션되었습니다.")
-        except TimeoutError:
-            # 리디렉션이 발생하지 않았을 경우, 현재 URL 확인
-            current_url = page.url
-            if 'lg00_001.do' in current_url:
-                print("✓ 이미 업무포털 로그인 페이지에 있습니다.")
-            else:
-                raise Exception(f"예상된 리디렉션이 발생하지 않았습니다. 현재 URL: {current_url}")
-        
-        # 페이지 로딩 완료 대기
-        page.wait_for_load_state("networkidle", timeout=30000)
-        
-        # 3단계: 사용자에게 수동 로그인 안내
-        print("3단계: 사용자 수동 로그인 단계...")
-        messagebox.showinfo("K-에듀파인 로그인 안내", 
-                          "K-에듀파인 접속을 위해 업무포털 로그인이 필요합니다.\n\n"
-                          "브라우저에서 수동으로 로그인을 완료해주세요.\n"
-                          "로그인 완료 후 자동으로 K-에듀파인 페이지로 이동됩니다.\n\n"
-                          "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
-        
-        # 4단계: 로그인 완료 후 K-에듀파인으로 자동 복귀 대기
-        print("4단계: 로그인 완료 후 K-에듀파인으로의 자동 복귀를 대기합니다...")
-        try:
-            # K-에듀파인 URL로 다시 돌아올 때까지 대기 (최대 3분)
-            page.wait_for_url("**/klef.jbe.go.kr/**", timeout=180000)
-            print("✓ K-에듀파인 페이지로 성공적으로 복귀했습니다.")
-        except TimeoutError:
-            # 타임아웃 발생 시 현재 상태 확인
-            current_url = page.url
-            if 'klef.jbe.go.kr' in current_url:
-                print("✓ K-에듀파인 페이지에 있습니다.")
-            elif 'lg00_001.do' in current_url:
-                raise TimeoutError("로그인이 완료되지 않았습니다. 브라우저에서 로그인을 완료해주세요.")
-            else:
-                raise TimeoutError(f"예상된 K-에듀파인 복귀가 발생하지 않았습니다. 현재 URL: {current_url}")
-        
-        # 최종 페이지 로딩 완료 확인
-        page.wait_for_load_state("networkidle", timeout=30000)
-        print("K-에듀파인 페이지에 성공적으로 접속했습니다.")
-        
-        # 브라우저 매니저의 현재 페이지 업데이트
-        browser_manager.page = page
-        
+        _master_navigate_to_service('에듀파인')
         messagebox.showinfo("완료", "K-에듀파인 접속이 완료되었습니다.")
-        
     except Exception as e:
         _handle_error(e)
+
