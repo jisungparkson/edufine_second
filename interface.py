@@ -8,7 +8,7 @@ import pyautogui
 import pyperclip
 from tkinter import messagebox
 from btn_commands import (
-    open_eduptl, do_login_only, navigate_to_neis_only, navigate_to_edufine, browser_manager
+    open_eduptl, do_login_only, navigate_to_neis, navigate_to_edufine, browser_manager
 )
 
 # --- UI 기본 설정 ---
@@ -426,16 +426,16 @@ class App(customtkinter.CTk):
 
     # --- 각 자동화 작업을 실행하는 함수들 ---
     def run_open_eduptl(self):
-        self.run_in_thread_with_log(open_eduptl, "업무포털 접속")
+        self.run_in_thread_with_log(lambda: open_eduptl(), "업무포털 접속")
 
     def run_do_login_only(self):
-        self.run_in_thread_with_log(do_login_only, "업무포털 로그인")
+        self.run_in_thread_with_log(lambda: do_login_only(), "업무포털 로그인")
 
     def run_navigate_to_edufine(self):
-        self.run_in_thread_with_log(navigate_to_edufine, "K-에듀파인")
+        self.run_in_thread_with_log(lambda: navigate_to_edufine(self), "K-에듀파인")
 
     def run_navigate_to_neis_only(self):
-        self.run_in_thread_with_log(navigate_to_neis_only, "나이스 메인")
+        self.run_in_thread_with_log(lambda: navigate_to_neis(self), "나이스 메인")
 
 
     def on_closing(self):
