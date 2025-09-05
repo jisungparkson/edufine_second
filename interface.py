@@ -8,7 +8,7 @@ import pyautogui
 import pyperclip
 from tkinter import messagebox
 from btn_commands import (
-    navigate_to_neis, navigate_to_edufine
+    navigate_to_neis, navigate_to_edufine, browser_manager
 )
 
 # --- UI 기본 설정 ---
@@ -431,14 +431,22 @@ class App(customtkinter.CTk):
 
 
     def on_closing(self):
-        """창이 닫힐 때 호출될 함수"""
+        """창이 닫힐 때 호출될 함수 - 공유 브라우저 세션을 안전하게 정리"""
+        # 가장 먼저 종료 플래그를 설정합니다
+        browser_manager.set_closing_flag()
+        
         if self.automation_running:
             self.stop_automation = True
             time.sleep(0.2)  # 자동화 중지 대기
         
-        self.add_log("프로그램을 종료합니다.")
-        self.add_log("각 브라우저 세션은 독립적으로 관리됩니다.")
-        self.destroy()  # CustomTkinter 창 닫기
+        self.add_log("프로그램을 종료합니다. 공유 브라우저 세션을 정리합니다...")
+        try:
+            browser_manager.close()  # 공유 브라우저를 안전하게 종료
+            self.add_log("공유 브라우저 세션이 정리되었습니다.")
+        except Exception as e:
+            self.add_log(f"브라우저 정리 중 오류: {str(e)}")
+        finally:
+            self.destroy()  # CustomTkinter 창 닫기
 
 
 if __name__ == "__main__":
