@@ -8,7 +8,7 @@ import pyautogui
 import pyperclip
 from tkinter import messagebox
 from btn_commands import (
-    open_eduptl, do_login_only, navigate_to_neis, navigate_to_edufine, browser_manager
+    navigate_to_neis, navigate_to_edufine
 )
 
 # --- UI 기본 설정 ---
@@ -232,10 +232,8 @@ class App(customtkinter.CTk):
     def create_automation_buttons(self):
         """자동화 작업 버튼들을 생성하는 함수"""
         button_configs = [
-            {"text": "업무포털 접속", "command": self.run_open_eduptl},
-            {"text": "업무포털 로그인", "command": self.run_do_login_only},
-            {"text": "K-에듀파인", "command": self.run_navigate_to_edufine},
-            {"text": "나이스 메인", "command": self.run_navigate_to_neis_only}
+            {"text": "나이스 접속", "command": self.run_navigate_to_neis},
+            {"text": "K-에듀파인 접속", "command": self.run_navigate_to_edufine}
         ]
         
         for config in button_configs:
@@ -425,36 +423,22 @@ class App(customtkinter.CTk):
         thread.start()
 
     # --- 각 자동화 작업을 실행하는 함수들 ---
-    def run_open_eduptl(self):
-        self.run_in_thread_with_log(lambda: open_eduptl(), "업무포털 접속")
-
-    def run_do_login_only(self):
-        self.run_in_thread_with_log(lambda: do_login_only(), "업무포털 로그인")
+    def run_navigate_to_neis(self):
+        self.run_in_thread_with_log(lambda: navigate_to_neis(self), "나이스 접속")
 
     def run_navigate_to_edufine(self):
-        self.run_in_thread_with_log(lambda: navigate_to_edufine(self), "K-에듀파인")
-
-    def run_navigate_to_neis_only(self):
-        self.run_in_thread_with_log(lambda: navigate_to_neis(self), "나이스 메인")
+        self.run_in_thread_with_log(lambda: navigate_to_edufine(self), "K-에듀파인 접속")
 
 
     def on_closing(self):
-        """창이 닫힐 때 호출될 함수 - 브라우저 리소스를 안전하게 정리"""
-        # 가장 먼저 종료 플래그를 설정합니다
-        browser_manager.set_closing_flag()
-        
+        """창이 닫힐 때 호출될 함수"""
         if self.automation_running:
             self.stop_automation = True
             time.sleep(0.2)  # 자동화 중지 대기
         
-        self.add_log("프로그램을 종료합니다. 브라우저 리소스를 정리합니다...")
-        try:
-            browser_manager.close()  # Playwright를 안전하게 종료
-            self.add_log("브라우저 리소스가 정리되었습니다.")
-        except Exception as e:
-            self.add_log(f"브라우저 정리 중 오류: {str(e)}")
-        finally:
-            self.destroy()  # CustomTkinter 창 닫기
+        self.add_log("프로그램을 종료합니다.")
+        self.add_log("각 브라우저 세션은 독립적으로 관리됩니다.")
+        self.destroy()  # CustomTkinter 창 닫기
 
 
 if __name__ == "__main__":
