@@ -8,7 +8,7 @@ import pyautogui
 import pyperclip
 from tkinter import messagebox
 from btn_commands import (
-    navigate_to_neis, navigate_to_edufine, browser_manager
+    navigate_to_neis, navigate_to_edufine, open_neis_and_edufine_after_login, browser_manager
 )
 
 # --- UI 기본 설정 ---
@@ -233,7 +233,8 @@ class App(customtkinter.CTk):
         """자동화 작업 버튼들을 생성하는 함수"""
         button_configs = [
             {"text": "나이스 접속", "command": self.run_navigate_to_neis},
-            {"text": "K-에듀파인 접속", "command": self.run_navigate_to_edufine}
+            {"text": "K-에듀파인 접속", "command": self.run_navigate_to_edufine},
+            {"text": "업무포털 (나이스+에듀파인)", "command": self.run_open_neis_and_edufine}
         ]
         
         for config in button_configs:
@@ -428,6 +429,9 @@ class App(customtkinter.CTk):
 
     def run_navigate_to_edufine(self):
         self.run_in_thread_with_log(lambda: navigate_to_edufine(self), "K-에듀파인 접속")
+
+    def run_open_neis_and_edufine(self):
+        self.run_in_thread_with_log(lambda: open_neis_and_edufine_after_login(self), "업무포털 (나이스+에듀파인)")
 
 
     def on_closing(self):

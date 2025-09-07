@@ -1,7 +1,8 @@
 # btn_commands.py (공유 영구 세션 아키텍처 버전)
 
+import threading
 from playwright.sync_api import sync_playwright, Page, Playwright, Browser, BrowserContext, TimeoutError, expect
-from utils import urls
+from utils import urls, open_url_in_new_tab
 from tkinter import messagebox
 
 
@@ -235,4 +236,131 @@ def navigate_to_edufine(app_instance):
         
     except Exception as e:
         print(f"K-에듀파인 접속 중 오류: {e}")
+        _handle_error(e)
+
+
+def _wait_for_login_success(page: Page):
+    """
+    로그인 성공을 대기하는 헬퍼 함수
+    로그인 페이지에서 벗어나면 로그인 성공으로 판단
+    """
+    try:
+        print("로그인 성공을 감지합니다...")
+        # 로그인 페이지에서 벗어나면 로그인 성공으로 판단
+        page.wait_for_function(
+            "() => !window.location.href.includes('bpm_lgn_lg00_001.do')", 
+            timeout=180000
+        )
+        print("✓ 로그인 성공이 감지되었습니다!")
+        return True
+        
+    except TimeoutError:
+        current_url = page.url
+        if 'lg00_001.do' not in current_url:
+            print("✓ 로그인이 완료된 것으로 판단됩니다.")
+            return True
+        else:
+            raise TimeoutError("로그인 시간이 초과되었습니다. 다시 시도해주세요.")
+
+
+def _open_tab_parallel(service_name: str, url: str, results: dict):
+    """
+    병렬 처리를 위한 탭 열기 헬퍼 함수
+    """
+    try:
+        print(f"{service_name} 탭을 여는 중...")
+        page = browser_manager.get_or_create_page(service_name)
+        page.goto(url)
+        page.wait_for_load_state("networkidle", timeout=30000)
+        results[service_name] = "성공"
+        print(f"✓ {service_name} 탭이 성공적으로 열렸습니다!")
+    except Exception as e:
+        results[service_name] = f"오류: {str(e)}"
+        print(f"✗ {service_name} 탭 열기 중 오류: {e}")
+
+
+def open_neis_and_edufine_after_login(app_instance):
+    """
+    업무포털 로그인 후 나이스와 에듀파인을 병렬로 여는 핵심 함수
+    1. 브라우저 실행 및 로그인 페이지 이동
+    2. 수동 로그인 대기
+    3. 병렬로 나이스와 에듀파인 탭 열기
+    """
+    try:
+        print("=== 업무포털 (나이스+에듀파인) 동시 접속 시작 ===")
+        
+        # 1단계: 브라우저 실행 및 로그인 페이지 이동
+        print("1단계: 브라우저 실행 및 업무포털 로그인 페이지로 이동합니다...")
+        browser_manager.ensure_browser_initialized()
+        
+        # 로그인용 페이지 생성
+        login_page = browser_manager.context.new_page()
+        login_page.set_viewport_size({"width": 1920, "height": 1080})
+        login_page.goto(urls['업무포털 로그인'])
+        login_page.wait_for_load_state("networkidle", timeout=30000)
+        
+        # 2단계: 수동 로그인 안내 및 대기
+        print("2단계: 사용자 수동 로그인을 안내합니다...")
+        messagebox.showinfo("업무포털 로그인 안내", 
+                          "나이스와 에듀파인 동시 접속을 위한 로그인이 필요합니다. 🔐\n\n"
+                          "브라우저에서 수동으로 로그인을 완료해주세요.\n"
+                          "로그인 완료 후 자동으로 두 사이트가 열립니다.\n\n"
+                          "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
+        
+        # 로그인 성공 대기
+        _wait_for_login_success(login_page)
+        browser_manager.is_logged_in = True
+        
+        # 로그인용 페이지 닫기
+        login_page.close()
+        
+        # 3단계: 병렬로 나이스와 에듀파인 탭 열기
+        print("3단계: 나이스와 에듀파인을 동시에 열고 있습니다...")
+        
+        # 결과를 저장할 딕셔너리
+        results = {}
+        
+        # 스레드 생성
+        neis_thread = threading.Thread(
+            target=_open_tab_parallel, 
+            args=("나이스", urls['나이스'], results)
+        )
+        edufine_thread = threading.Thread(
+            target=_open_tab_parallel, 
+            args=("에듀파인", urls['에듀파인'], results)
+        )
+        
+        # 병렬 실행
+        neis_thread.start()
+        edufine_thread.start()
+        
+        # 모든 스레드 완료 대기
+        neis_thread.join()
+        edufine_thread.join()
+        
+        # 결과 확인 및 안내
+        success_count = sum(1 for result in results.values() if result == "성공")
+        
+        if success_count == 2:
+            print("✓ 나이스와 에듀파인 모두 성공적으로 접속했습니다!")
+            messagebox.showinfo("접속 완료", 
+                              "나이스와 에듀파인에 모두 성공적으로 접속했습니다! 🎉\n\n"
+                              "이제 두 사이트에서 필요한 작업을 수행하세요.\n"
+                              "탭을 전환하여 각 사이트를 이용할 수 있습니다.")
+        elif success_count == 1:
+            failed_service = [service for service, result in results.items() if result != "성공"][0]
+            print(f"일부 접속 실패: {failed_service}")
+            messagebox.showwarning("일부 접속 실패", 
+                                 f"한 사이트는 성공했지만 {failed_service} 접속에 실패했습니다.\n\n"
+                                 f"오류: {results[failed_service]}\n\n"
+                                 "성공한 사이트는 정상적으로 이용 가능합니다.")
+        else:
+            print("두 사이트 모두 접속에 실패했습니다.")
+            error_msg = "접속 실패:\n"
+            for service, result in results.items():
+                error_msg += f"- {service}: {result}\n"
+            messagebox.showerror("접속 실패", error_msg)
+        
+    except Exception as e:
+        print(f"업무포털 (나이스+에듀파인) 접속 중 오류: {e}")
         _handle_error(e)
