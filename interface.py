@@ -234,7 +234,7 @@ class App(customtkinter.CTk):
         button_configs = [
             {"text": "나이스 접속", "command": self.navigate_to_neis_directly},
             {"text": "K-에듀파인 접속", "command": self.navigate_to_edufine_directly},
-            {"text": "업무포털 (나이스+에듀파인)", "command": self.run_open_neis_and_edufine}
+            {"text": "업무포털 (나이스+에듀파인)", "command": self.open_neis_and_edufine_directly}
         ]
         
         for config in button_configs:
@@ -446,14 +446,17 @@ class App(customtkinter.CTk):
             self.add_log(error_msg)
             messagebox.showerror("오류", error_msg)
 
-    def run_navigate_to_neis(self):
-        self.run_in_thread_with_log(lambda: navigate_to_neis(self), "나이스 접속")
+    def open_neis_and_edufine_directly(self):
+        """업무포털 (나이스+에듀파인)에 직접 접속 (스레드 생성 없이)"""
+        try:
+            self.add_log("업무포털 (나이스+에듀파인) 접속 작업을 시작합니다...")
+            open_neis_and_edufine_after_login(self)
+            self.add_log("업무포털 (나이스+에듀파인) 접속 작업이 완료되었습니다.")
+        except Exception as e:
+            error_msg = f"업무포털 (나이스+에듀파인) 접속 작업 중 오류가 발생했습니다: {str(e)}"
+            self.add_log(error_msg)
+            messagebox.showerror("오류", error_msg)
 
-    def run_navigate_to_edufine(self):
-        self.run_in_thread_with_log(lambda: navigate_to_edufine(self), "K-에듀파인 접속")
-
-    def run_open_neis_and_edufine(self):
-        self.run_in_thread_with_log(lambda: open_neis_and_edufine_after_login(self), "업무포털 (나이스+에듀파인)")
 
 
     def on_closing(self):
