@@ -1,6 +1,5 @@
 # btn_commands.py (공유 영구 세션 아키텍처 버전)
 
-import threading
 from playwright.sync_api import sync_playwright, Page, Playwright, Browser, BrowserContext, TimeoutError, expect
 from utils import urls, open_url_in_new_tab
 from tkinter import messagebox
@@ -263,31 +262,15 @@ def _wait_for_login_success(page: Page):
             raise TimeoutError("로그인 시간이 초과되었습니다. 다시 시도해주세요.")
 
 
-def _open_tab_parallel(service_name: str, url: str, results: dict):
-    """
-    병렬 처리를 위한 탭 열기 헬퍼 함수
-    """
-    try:
-        print(f"{service_name} 탭을 여는 중...")
-        page = browser_manager.get_or_create_page(service_name)
-        page.goto(url)
-        page.wait_for_load_state("networkidle", timeout=30000)
-        results[service_name] = "성공"
-        print(f"✓ {service_name} 탭이 성공적으로 열렸습니다!")
-    except Exception as e:
-        results[service_name] = f"오류: {str(e)}"
-        print(f"✗ {service_name} 탭 열기 중 오류: {e}")
-
-
 def open_neis_and_edufine_after_login(app_instance):
     """
-    업무포털 로그인 후 나이스와 에듀파인을 병렬로 여는 핵심 함수
+    업무포털 로그인 후 나이스와 에듀파인을 순차적으로 여는 핵심 함수
     1. 브라우저 실행 및 로그인 페이지 이동
     2. 수동 로그인 대기
-    3. 병렬로 나이스와 에듀파인 탭 열기
+    3. 순차적으로 나이스와 에듀파인 탭 열기
     """
     try:
-        print("=== 업무포털 (나이스+에듀파인) 동시 접속 시작 ===")
+        print("=== 업무포털 (나이스+에듀파인) 순차 접속 시작 ===")
         
         # 1단계: 브라우저 실행 및 로그인 페이지 이동
         print("1단계: 브라우저 실행 및 업무포털 로그인 페이지로 이동합니다...")
@@ -302,7 +285,7 @@ def open_neis_and_edufine_after_login(app_instance):
         # 2단계: 수동 로그인 안내 및 대기
         print("2단계: 사용자 수동 로그인을 안내합니다...")
         messagebox.showinfo("업무포털 로그인 안내", 
-                          "나이스와 에듀파인 동시 접속을 위한 로그인이 필요합니다. 🔐\n\n"
+                          "나이스와 에듀파인 접속을 위한 로그인이 필요합니다. 🔐\n\n"
                           "브라우저에서 수동으로 로그인을 완료해주세요.\n"
                           "로그인 완료 후 자동으로 두 사이트가 열립니다.\n\n"
                           "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
@@ -314,29 +297,34 @@ def open_neis_and_edufine_after_login(app_instance):
         # 로그인용 페이지 닫기
         login_page.close()
         
-        # 3단계: 병렬로 나이스와 에듀파인 탭 열기
-        print("3단계: 나이스와 에듀파인을 동시에 열고 있습니다...")
+        # 3단계: 순차적으로 나이스와 에듀파인 탭 열기
+        print("3단계: 나이스와 에듀파인을 순차적으로 열고 있습니다...")
         
-        # 결과를 저장할 딕셔너리
         results = {}
         
-        # 스레드 생성
-        neis_thread = threading.Thread(
-            target=_open_tab_parallel, 
-            args=("나이스", urls['나이스'], results)
-        )
-        edufine_thread = threading.Thread(
-            target=_open_tab_parallel, 
-            args=("에듀파인", urls['에듀파인'], results)
-        )
+        # 나이스 탭 열기
+        try:
+            print("나이스 탭을 여는 중...")
+            neis_page = browser_manager.get_or_create_page('나이스')
+            neis_page.goto(urls['나이스'])
+            neis_page.wait_for_load_state("networkidle", timeout=30000)
+            results['나이스'] = "성공"
+            print("✓ 나이스 탭이 성공적으로 열렸습니다!")
+        except Exception as e:
+            results['나이스'] = f"오류: {str(e)}"
+            print(f"✗ 나이스 탭 열기 중 오류: {e}")
         
-        # 병렬 실행
-        neis_thread.start()
-        edufine_thread.start()
-        
-        # 모든 스레드 완료 대기
-        neis_thread.join()
-        edufine_thread.join()
+        # 에듀파인 탭 열기
+        try:
+            print("에듀파인 탭을 여는 중...")
+            edufine_page = browser_manager.get_or_create_page('에듀파인')
+            edufine_page.goto(urls['에듀파인'])
+            edufine_page.wait_for_load_state("networkidle", timeout=30000)
+            results['에듀파인'] = "성공"
+            print("✓ 에듀파인 탭이 성공적으로 열렸습니다!")
+        except Exception as e:
+            results['에듀파인'] = f"오류: {str(e)}"
+            print(f"✗ 에듀파인 탭 열기 중 오류: {e}")
         
         # 결과 확인 및 안내
         success_count = sum(1 for result in results.values() if result == "성공")
