@@ -6,6 +6,7 @@ import datetime
 import time
 import pyautogui
 import pyperclip
+import webbrowser
 from tkinter import messagebox
 from btn_commands import (
     navigate_to_neis, navigate_to_edufine, open_neis_and_edufine_after_login, browser_manager
@@ -43,6 +44,7 @@ class App(customtkinter.CTk):
         self.font_log = customtkinter.CTkFont(family="맑은 고딕", size=12, weight="normal")
         self.font_small_button = customtkinter.CTkFont(family="맑은 고딕", size=12, weight="bold")
         self.font_paste_title = customtkinter.CTkFont(family="맑은 고딕", size=16, weight="bold")
+        self.font_footer = customtkinter.CTkFont(family="맑은 고딕", size=11, weight="normal")
 
         # --- 윈도우(창) 설정 ---
         self.title("업무포털 자동화 프로그램 v3.0")
@@ -56,12 +58,14 @@ class App(customtkinter.CTk):
         self.grid_columnconfigure(0, weight=2)   # 왼쪽: 자동화 버튼
         self.grid_columnconfigure(1, weight=3)   # 가운데: 스마트 붙여넣기
         self.grid_columnconfigure(2, weight=4)   # 오른쪽: 로그
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)      # 메인 콘텐츠
+        self.grid_rowconfigure(1, weight=0)      # 푸터
 
         # UI 생성
         self.create_left_frame()    # 왼쪽 프레임 (기존 자동화 버튼들)
         self.create_middle_frame()  # 가운데 프레임 (스마트 붙여넣기)
         self.create_right_frame()   # 오른쪽 프레임 (로그)
+        self.create_footer_frame()  # 푸터 프레임 (제작자 정보)
         
         # --- 초기 로그 메시지 추가 ---
         self.add_log("프로그램이 준비되었습니다.")
@@ -228,6 +232,44 @@ class App(customtkinter.CTk):
             corner_radius=8
         )
         self.clear_log_button.pack(pady=(0, 15))
+
+    def create_footer_frame(self):
+        """푸터 프레임 (제작자 정보)를 생성"""
+        self.footer_frame = customtkinter.CTkFrame(self, corner_radius=10, height=50)
+        self.footer_frame.grid(row=1, column=0, columnspan=3, padx=10, pady=(0, 10), sticky="ew")
+        
+        # 내부 프레임으로 중앙 정렬
+        inner_frame = customtkinter.CTkFrame(self.footer_frame, fg_color="transparent")
+        inner_frame.pack(expand=True, fill="both")
+        
+        # 제작자 정보 텍스트
+        maker_label = customtkinter.CTkLabel(
+            inner_frame,
+            text="made by 전주화정초 박성광",
+            font=self.font_footer,
+            text_color="#666666"
+        )
+        maker_label.pack(side="left", padx=(20, 10), pady=10)
+        
+        # 구분자
+        separator_label = customtkinter.CTkLabel(
+            inner_frame,
+            text="|",
+            font=self.font_footer,
+            text_color="#999999"
+        )
+        separator_label.pack(side="left", padx=5, pady=10)
+        
+        # 유튜브 링크
+        self.youtube_label = customtkinter.CTkLabel(
+            inner_frame,
+            text="@더더쌤",
+            font=self.font_footer,
+            text_color="#0066cc",
+            cursor="hand2"
+        )
+        self.youtube_label.pack(side="left", padx=(10, 20), pady=10)
+        self.youtube_label.bind("<Button-1>", self.open_youtube_link)
 
     def create_automation_buttons(self):
         """자동화 작업 버튼들을 생성하는 함수"""
@@ -457,7 +499,15 @@ class App(customtkinter.CTk):
             self.add_log(error_msg)
             messagebox.showerror("오류", error_msg)
 
-
+    def open_youtube_link(self, event):
+        """유튜브 링크를 새 창에서 열기"""
+        try:
+            webbrowser.open("https://www.youtube.com/@더더쌤/featured")
+            self.add_log("유튜브 채널을 열었습니다.")
+        except Exception as e:
+            error_msg = f"유튜브 링크를 여는 중 오류가 발생했습니다: {str(e)}"
+            self.add_log(error_msg)
+            messagebox.showerror("오류", error_msg)
 
     def on_closing(self):
         """창이 닫힐 때 호출될 함수 - 공유 브라우저 세션을 안전하게 정리"""
