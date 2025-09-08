@@ -177,68 +177,121 @@ def _perform_universal_login(app_instance):
         raise
 
 
-def navigate_to_neis(app_instance):
+def do_login_only():
     """
-    나이스 페이지 관리 함수:
-    기존 브라우저 세션을 재사용하여 나이스 페이지를 열거나 활성화
+    단순 로그인 전용 함수: 기존 브라우저에서 로그인만 수행
+    업무포털 로그인 페이지로 이동하여 사용자 로그인 완료 후 메인 페이지로 이동
     """
     try:
-        print("=== 나이스 페이지 관리 시작 ===")
+        print("=== 단순 로그인 수행 ===")
         
-        # 1단계: 브라우저가 이미 초기화되어 있는지 확인
-        if browser_manager.browser is None or not browser_manager.browser.is_connected():
-            print("브라우저가 초기화되지 않음. 범용 로그인을 수행합니다...")
-            _perform_universal_login(app_instance)
+        # 브라우저가 초기화되지 않았다면 초기화
+        browser_manager.ensure_browser_initialized()
+        
+        # 기존 페이지 중 하나를 사용하거나 새 페이지 생성
+        if browser_manager.pages:
+            # 기존 페이지 중 하나를 로그인용으로 사용
+            page = list(browser_manager.pages.values())[0]
         else:
-            print("기존 브라우저 세션을 재사용합니다...")
+            # 새 페이지 생성
+            page = browser_manager.context.new_page()
+            page.set_viewport_size({"width": 1920, "height": 1080})
         
-        # 2단계: 나이스 페이지 가져오기 또는 생성
+        # 업무포털 로그인 페이지로 이동
+        print("업무포털 로그인 페이지로 이동합니다...")
+        page.goto(urls['업무포털 로그인'])
+        page.wait_for_load_state("networkidle", timeout=30000)
+        
+        # 사용자 로그인 안내
+        messagebox.showinfo("로그인 필요", 
+                          "로그인이 필요합니다. 🔐\n\n"
+                          "브라우저에서 로그인을 완료해주세요.\n\n"
+                          "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
+        
+        # 로그인 성공 대기
+        _wait_for_login_success(page)
+        browser_manager.is_logged_in = True
+        print("✓ 로그인이 완료되었습니다!")
+        
+        return page
+        
+    except Exception as e:
+        print(f"로그인 중 오류: {e}")
+        raise
+
+
+def navigate_to_neis(app_instance):
+    """
+    나이스 접속 함수: 단일 스레드에서 기존 브라우저 재사용
+    """
+    try:
+        print("=== 나이스 접속 시작 ===")
+        
+        # 1단계: 브라우저 상태 확인
+        if browser_manager.browser is None or not browser_manager.browser.is_connected():
+            print("브라우저가 초기화되지 않음. 새 브라우저를 시작합니다...")
+            browser_manager.ensure_browser_initialized()
+        else:
+            print("기존 브라우저를 재사용합니다...")
+        
+        # 2단계: 나이스 페이지 확인/생성
         page = browser_manager.get_or_create_page('나이스')
         
-        # 3단계: 현재 페이지가 이미 나이스인지 확인
-        current_url = page.url
-        if 'neis.go.kr' in current_url:
-            print("✓ 이미 나이스 페이지에 있습니다. 페이지를 활성화합니다.")
-            page.bring_to_front()
-            messagebox.showinfo("나이스 접속 완료", 
-                              "나이스 페이지가 이미 열려있습니다! 🎉\n\n"
-                              "활성 탭으로 전환되었습니다.")
-            return
-        
-        # 4단계: 나이스 URL로 이동
-        print("나이스 사이트로 이동합니다...")
+        # 3단계: 현재 URL 확인
         try:
-            page.goto(urls['나이스'])
-            page.wait_for_load_state("networkidle", timeout=30000)
+            current_url = page.url
+            print(f"현재 페이지 URL: {current_url}")
             
-            # 5단계: 접속 완료 안내
-            final_url = page.url
-            if 'neis.go.kr' in final_url:
-                print("✓ 나이스에 성공적으로 접속했습니다!")
-                messagebox.showinfo("나이스 접속 완료", 
-                                  "나이스에 성공적으로 접속했습니다! 🎉\n\n"
-                                  "이제 나이스에서 필요한 작업을 수행하세요.")
-            else:
-                print("나이스 접속 중... 추가 리디렉션이 진행될 수 있습니다.")
-                messagebox.showinfo("나이스 접속 중", 
-                                  "나이스 접속이 진행 중입니다.\n\n"
-                                  "잠시 후 나이스 페이지가 로드됩니다.")
-                
-        except Exception as nav_error:
-            print(f"나이스 페이지 이동 중 오류: {nav_error}")
-            # 로그인이 필요할 수 있으므로 범용 로그인 재시도
-            if not browser_manager.is_logged_in:
-                print("로그인이 필요한 것 같습니다. 범용 로그인을 수행합니다...")
-                browser_manager.is_logged_in = False  # 로그인 상태 초기화
-                _perform_universal_login(app_instance)
-                
-                # 로그인 후 다시 나이스 이동 시도
+            # 이미 나이스 페이지라면 활성화만 하고 종료
+            if 'neis.go.kr' in current_url:
+                print("✓ 이미 나이스 페이지에 있습니다.")
+                page.bring_to_front()
+                messagebox.showinfo("나이스 접속", "나이스 페이지가 활성화되었습니다! 🎉")
+                return
+            
+            # 로그인 페이지인지 확인
+            if 'lg00_001.do' in current_url:
+                print("로그인 페이지에 있습니다. 로그인이 필요합니다.")
+                do_login_only()
+                # 로그인 후 업무포털 메인 페이지로 이동될 것임
+            
+            # 업무포털 메인 페이지나 기타 페이지에서 나이스로 이동
+            if 'eduptl.kr' in current_url or current_url == 'about:blank':
+                print("업무포털에서 나이스로 이동합니다...")
                 page.goto(urls['나이스'])
                 page.wait_for_load_state("networkidle", timeout=30000)
-                messagebox.showinfo("나이스 접속 완료", 
-                                  "로그인 후 나이스에 접속했습니다! 🎉")
+                
+                # 성공 확인
+                final_url = page.url
+                if 'neis.go.kr' in final_url:
+                    print("✓ 나이스에 성공적으로 접속했습니다!")
+                    messagebox.showinfo("나이스 접속 완료", 
+                                      "나이스에 성공적으로 접속했습니다! 🎉")
+                else:
+                    print(f"나이스 접속 후 최종 URL: {final_url}")
+                    messagebox.showinfo("나이스 접속", "나이스 접속이 진행 중입니다...")
             else:
-                raise nav_error
+                # 다른 사이트에서 직접 나이스로 이동
+                print("다른 사이트에서 나이스로 이동합니다...")
+                page.goto(urls['나이스'])
+                page.wait_for_load_state("networkidle", timeout=30000)
+                messagebox.showinfo("나이스 접속 완료", "나이스에 접속했습니다! 🎉")
+        
+        except Exception as url_error:
+            print(f"URL 확인/이동 중 오류: {url_error}")
+            # 로그인이 필요할 수 있음
+            try:
+                print("로그인을 시도합니다...")
+                do_login_only()
+                
+                # 로그인 후 나이스 이동
+                page.goto(urls['나이스'])
+                page.wait_for_load_state("networkidle", timeout=30000)
+                messagebox.showinfo("나이스 접속 완료", "로그인 후 나이스에 접속했습니다! 🎉")
+                
+            except Exception as login_error:
+                print(f"로그인 후 이동 중 오류: {login_error}")
+                raise
         
     except Exception as e:
         print(f"나이스 접속 중 오류: {e}")
@@ -247,66 +300,76 @@ def navigate_to_neis(app_instance):
 
 def navigate_to_edufine(app_instance):
     """
-    K-에듀파인 페이지 관리 함수:
-    기존 브라우저 세션을 재사용하여 K-에듀파인 페이지를 열거나 활성화
+    K-에듀파인 접속 함수: 단일 스레드에서 기존 브라우저 재사용
     """
     try:
-        print("=== K-에듀파인 페이지 관리 시작 ===")
+        print("=== K-에듀파인 접속 시작 ===")
         
-        # 1단계: 브라우저가 이미 초기화되어 있는지 확인
+        # 1단계: 브라우저 상태 확인
         if browser_manager.browser is None or not browser_manager.browser.is_connected():
-            print("브라우저가 초기화되지 않음. 범용 로그인을 수행합니다...")
-            _perform_universal_login(app_instance)
+            print("브라우저가 초기화되지 않음. 새 브라우저를 시작합니다...")
+            browser_manager.ensure_browser_initialized()
         else:
-            print("기존 브라우저 세션을 재사용합니다...")
+            print("기존 브라우저를 재사용합니다...")
         
-        # 2단계: K-에듀파인 페이지 가져오기 또는 생성
+        # 2단계: 에듀파인 페이지 확인/생성
         page = browser_manager.get_or_create_page('에듀파인')
         
-        # 3단계: 현재 페이지가 이미 에듀파인인지 확인
-        current_url = page.url
-        if 'klef.jbe.go.kr' in current_url:
-            print("✓ 이미 K-에듀파인 페이지에 있습니다. 페이지를 활성화합니다.")
-            page.bring_to_front()
-            messagebox.showinfo("K-에듀파인 접속 완료", 
-                              "K-에듀파인 페이지가 이미 열려있습니다! 🎉\n\n"
-                              "활성 탭으로 전환되었습니다.")
-            return
-        
-        # 4단계: K-에듀파인 URL로 이동
-        print("K-에듀파인 사이트로 이동합니다...")
+        # 3단계: 현재 URL 확인
         try:
-            page.goto(urls['에듀파인'])
-            page.wait_for_load_state("networkidle", timeout=30000)
+            current_url = page.url
+            print(f"현재 페이지 URL: {current_url}")
             
-            # 5단계: 접속 완료 안내
-            final_url = page.url
-            if 'klef.jbe.go.kr' in final_url:
-                print("✓ K-에듀파인에 성공적으로 접속했습니다!")
-                messagebox.showinfo("K-에듀파인 접속 완료", 
-                                  "K-에듀파인에 성공적으로 접속했습니다! 🎉\n\n"
-                                  "이제 K-에듀파인에서 필요한 작업을 수행하세요.")
-            else:
-                print("K-에듀파인 접속 중... 추가 리디렉션이 진행될 수 있습니다.")
-                messagebox.showinfo("K-에듀파인 접속 중", 
-                                  "K-에듀파인 접속이 진행 중입니다.\n\n"
-                                  "잠시 후 K-에듀파인 페이지가 로드됩니다.")
-                
-        except Exception as nav_error:
-            print(f"K-에듀파인 페이지 이동 중 오류: {nav_error}")
-            # 로그인이 필요할 수 있으므로 범용 로그인 재시도
-            if not browser_manager.is_logged_in:
-                print("로그인이 필요한 것 같습니다. 범용 로그인을 수행합니다...")
-                browser_manager.is_logged_in = False  # 로그인 상태 초기화
-                _perform_universal_login(app_instance)
-                
-                # 로그인 후 다시 에듀파인 이동 시도
+            # 이미 에듀파인 페이지라면 활성화만 하고 종료
+            if 'klef.jbe.go.kr' in current_url:
+                print("✓ 이미 K-에듀파인 페이지에 있습니다.")
+                page.bring_to_front()
+                messagebox.showinfo("K-에듀파인 접속", "K-에듀파인 페이지가 활성화되었습니다! 🎉")
+                return
+            
+            # 로그인 페이지인지 확인
+            if 'lg00_001.do' in current_url:
+                print("로그인 페이지에 있습니다. 로그인이 필요합니다.")
+                do_login_only()
+                # 로그인 후 업무포털 메인 페이지로 이동될 것임
+            
+            # 업무포털 메인 페이지나 기타 페이지에서 에듀파인으로 이동
+            if 'eduptl.kr' in current_url or current_url == 'about:blank':
+                print("업무포털에서 K-에듀파인으로 이동합니다...")
                 page.goto(urls['에듀파인'])
                 page.wait_for_load_state("networkidle", timeout=30000)
-                messagebox.showinfo("K-에듀파인 접속 완료", 
-                                  "로그인 후 K-에듀파인에 접속했습니다! 🎉")
+                
+                # 성공 확인
+                final_url = page.url
+                if 'klef.jbe.go.kr' in final_url:
+                    print("✓ K-에듀파인에 성공적으로 접속했습니다!")
+                    messagebox.showinfo("K-에듀파인 접속 완료", 
+                                      "K-에듀파인에 성공적으로 접속했습니다! 🎉")
+                else:
+                    print(f"K-에듀파인 접속 후 최종 URL: {final_url}")
+                    messagebox.showinfo("K-에듀파인 접속", "K-에듀파인 접속이 진행 중입니다...")
             else:
-                raise nav_error
+                # 다른 사이트에서 직접 에듀파인으로 이동
+                print("다른 사이트에서 K-에듀파인으로 이동합니다...")
+                page.goto(urls['에듀파인'])
+                page.wait_for_load_state("networkidle", timeout=30000)
+                messagebox.showinfo("K-에듀파인 접속 완료", "K-에듀파인에 접속했습니다! 🎉")
+        
+        except Exception as url_error:
+            print(f"URL 확인/이동 중 오류: {url_error}")
+            # 로그인이 필요할 수 있음
+            try:
+                print("로그인을 시도합니다...")
+                do_login_only()
+                
+                # 로그인 후 에듀파인 이동
+                page.goto(urls['에듀파인'])
+                page.wait_for_load_state("networkidle", timeout=30000)
+                messagebox.showinfo("K-에듀파인 접속 완료", "로그인 후 K-에듀파인에 접속했습니다! 🎉")
+                
+            except Exception as login_error:
+                print(f"로그인 후 이동 중 오류: {login_error}")
+                raise
         
     except Exception as e:
         print(f"K-에듀파인 접속 중 오류: {e}")
