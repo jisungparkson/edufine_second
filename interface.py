@@ -232,8 +232,8 @@ class App(customtkinter.CTk):
     def create_automation_buttons(self):
         """자동화 작업 버튼들을 생성하는 함수"""
         button_configs = [
-            {"text": "나이스 접속", "command": self.run_navigate_to_neis},
-            {"text": "K-에듀파인 접속", "command": self.run_navigate_to_edufine},
+            {"text": "나이스 접속", "command": self.navigate_to_neis_directly},
+            {"text": "K-에듀파인 접속", "command": self.navigate_to_edufine_directly},
             {"text": "업무포털 (나이스+에듀파인)", "command": self.run_open_neis_and_edufine}
         ]
         
@@ -424,6 +424,28 @@ class App(customtkinter.CTk):
         thread.start()
 
     # --- 각 자동화 작업을 실행하는 함수들 ---
+    def navigate_to_neis_directly(self):
+        """나이스에 직접 접속 (스레드 생성 없이)"""
+        try:
+            self.add_log("나이스 접속 작업을 시작합니다...")
+            navigate_to_neis(self)
+            self.add_log("나이스 접속 작업이 완료되었습니다.")
+        except Exception as e:
+            error_msg = f"나이스 접속 작업 중 오류가 발생했습니다: {str(e)}"
+            self.add_log(error_msg)
+            messagebox.showerror("오류", error_msg)
+    
+    def navigate_to_edufine_directly(self):
+        """에듀파인에 직접 접속 (스레드 생성 없이)"""
+        try:
+            self.add_log("K-에듀파인 접속 작업을 시작합니다...")
+            navigate_to_edufine(self)
+            self.add_log("K-에듀파인 접속 작업이 완료되었습니다.")
+        except Exception as e:
+            error_msg = f"K-에듀파인 접속 작업 중 오류가 발생했습니다: {str(e)}"
+            self.add_log(error_msg)
+            messagebox.showerror("오류", error_msg)
+
     def run_navigate_to_neis(self):
         self.run_in_thread_with_log(lambda: navigate_to_neis(self), "나이스 접속")
 
