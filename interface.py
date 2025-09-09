@@ -245,7 +245,7 @@ class App(customtkinter.CTk):
         # 제작자 정보 텍스트
         maker_label = customtkinter.CTkLabel(
             inner_frame,
-            text="made by 전주화정초 박성광",
+            text="made by 더더쌤",
             font=self.font_footer,
             text_color="#666666"
         )
@@ -263,7 +263,7 @@ class App(customtkinter.CTk):
         # 유튜브 링크
         self.youtube_label = customtkinter.CTkLabel(
             inner_frame,
-            text="@더더쌤",
+            text="📲업로드 도움 영상",
             font=self.font_footer,
             text_color="#0066cc",
             cursor="hand2"
@@ -276,7 +276,7 @@ class App(customtkinter.CTk):
         button_configs = [
             {"text": "나이스 접속", "command": self.navigate_to_neis_directly},
             {"text": "K-에듀파인 접속", "command": self.navigate_to_edufine_directly},
-            {"text": "업무포털 (나이스+에듀파인)", "command": self.open_neis_and_edufine_directly}
+            {"text": "업무포털 (나이스+K-에듀파인)", "command": self.open_neis_and_edufine_directly}
         ]
         
         for config in button_configs:
@@ -502,7 +502,7 @@ class App(customtkinter.CTk):
     def open_youtube_link(self, event):
         """유튜브 링크를 새 창에서 열기"""
         try:
-            webbrowser.open("https://www.youtube.com/@더더쌤/featured")
+            webbrowser.open("https://youtu.be/TQn3yMTNNFg?si=SmSosvqyTUU0GtL1")
             self.add_log("유튜브 채널을 열었습니다.")
         except Exception as e:
             error_msg = f"유튜브 링크를 여는 중 오류가 발생했습니다: {str(e)}"

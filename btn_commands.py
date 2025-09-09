@@ -488,5 +488,5 @@ def open_neis_and_edufine_after_login(app_instance):
             messagebox.showerror("접속 실패", error_msg)
         
     except Exception as e:
-        print(f"업무포털 (나이스+에듀파인) 접속 중 오류: {e}")
+        print(f"업무포털 (나이스+k-에듀파인) 접속 중 오류: {e}")
         _handle_error(e)
