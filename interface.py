@@ -245,20 +245,11 @@ class App(customtkinter.CTk):
         # 제작자 정보 텍스트
         maker_label = customtkinter.CTkLabel(
             inner_frame,
-            text="made by 더더쌤",
+            text="© 2025 더더쌤. All rights reserved. | pig7361@gmail.com",
             font=self.font_footer,
             text_color="#666666"
         )
         maker_label.pack(side="left", padx=(20, 10), pady=10)
-        
-        # 구분자
-        separator_label = customtkinter.CTkLabel(
-            inner_frame,
-            text="|",
-            font=self.font_footer,
-            text_color="#999999"
-        )
-        separator_label.pack(side="left", padx=5, pady=10)
         
         # 유튜브 링크
         self.youtube_label = customtkinter.CTkLabel(
