@@ -1,7 +1,7 @@
 # btn_commands.py (공유 영구 세션 아키텍처 버전)
 
 from playwright.sync_api import sync_playwright, Page, Playwright, Browser, BrowserContext, TimeoutError, expect
-from utils import urls, open_url_in_new_tab
+from utils import urls, open_url_in_new_tab, login
 from tkinter import messagebox
 
 
@@ -419,6 +419,9 @@ def open_neis_and_edufine_after_login(app_instance):
         login_page.set_viewport_size({"width": 1920, "height": 1080})
         login_page.goto(urls['업무포털 로그인'])
         login_page.wait_for_load_state("networkidle", timeout=30000)
+        
+        # 자동 로그인 버튼 클릭
+        login(login_page)
         
         # 2단계: 수동 로그인 안내 및 대기
         print("2단계: 사용자 수동 로그인을 안내합니다...")
