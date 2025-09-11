@@ -25,27 +25,30 @@ def login(page: Page):
 
         page.wait_for_timeout(2000)
         
-        print("비밀번호 입력창을 찾습니다...")
-        password_input = page.locator('input[name="certPassword"]')
-        expect(password_input).to_be_visible(timeout=10000)
-        
         password = get_password_from_file()
-        password_input.fill(password)
-        
-        print("여러 개의 '확인' 버튼 중 정확한 버튼을 찾아 클릭합니다...")
-        
-        # 역할이 'button'이고 이름이 '확인'인 요소를 찾습니다.
-        # 이것이 'button.kc-btn-blue'보다 훨씬 더 안정적입니다.
-        confirm_button_locator = page.get_by_role("button", name="확인", exact=True)
-        
-        # 여러 개가 발견되었으므로, 그중 마지막 버튼을 선택합니다.
-        # 인증서 창의 메인 확인 버튼은 보통 가장 마지막에 있는 경우가 많습니다.
-        final_confirm_button = confirm_button_locator.last
-        
-        # 마지막 버튼이 클릭 가능한 상태가 될 때까지 기다린 후 클릭
-        expect(final_confirm_button).to_be_enabled(timeout=10000)
-        final_confirm_button.click()
-        print("확인 버튼 클릭 완료")
+        if password:
+            print("비밀번호 입력창을 찾습니다...")
+            password_input = page.locator('input[name="certPassword"]')
+            expect(password_input).to_be_visible(timeout=10000)
+            
+            password_input.fill(password)
+            
+            print("여러 개의 '확인' 버튼 중 정확한 버튼을 찾아 클릭합니다...")
+            
+            # 역할이 'button'이고 이름이 '확인'인 요소를 찾습니다.
+            # 이것이 'button.kc-btn-blue'보다 훨씬 더 안정적입니다.
+            confirm_button_locator = page.get_by_role("button", name="확인", exact=True)
+            
+            # 여러 개가 발견되었으므로, 그중 마지막 버튼을 선택합니다.
+            # 인증서 창의 메인 확인 버튼은 보통 가장 마지막에 있는 경우가 많습니다.
+            final_confirm_button = confirm_button_locator.last
+            
+            # 마지막 버튼이 클릭 가능한 상태가 될 때까지 기다린 후 클릭
+            expect(final_confirm_button).to_be_enabled(timeout=10000)
+            final_confirm_button.click()
+            print("확인 버튼 클릭 완료")
+        else:
+            print("비밀번호 파일이 없습니다. 수동으로 로그인해주세요.")
         
     except TimeoutError as e:
         error_msg = f"로그인 과정에서 요소를 찾을 수 없습니다: {str(e)}"
@@ -72,7 +75,7 @@ def get_password_from_file():
         password_filepath = 'C:\\GPKI\\password.txt'  # 기본값
     
     if not os.path.exists(password_filepath):
-        raise FileNotFoundError(f"비밀번호 파일을 찾을 수 없습니다.\n{password_filepath} 경로에 비밀번호를 저장하세요.")
+        return None
     
     with open(password_filepath, 'r') as file:
         return file.read().strip()
