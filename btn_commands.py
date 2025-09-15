@@ -213,7 +213,14 @@ def do_login_only():
         
         # 자동 로그인 버튼 클릭 시도
         try:
-            login(page)
+            if 'bpm_lgn_lg00_001.do' in page.url:
+                print("로그인 페이지를 감지하여 자동 로그인을 시도합니다.")
+                login(page)
+            else:
+                print("이미 로그인된 상태이므로 자동 로그인을 건너뛁니다.")
+                browser_manager.is_logged_in = True
+                print("✓ 이미 로그인된 상태입니다!")
+                return page
             # 자동 로그인 성공 여부 확인 (짧은 시간만 대기)
             _wait_for_login_success(page, timeout=10000)
             browser_manager.is_logged_in = True
@@ -344,7 +351,11 @@ def open_neis_and_edufine_after_login(app_instance):
         login_page.wait_for_load_state("networkidle", timeout=30000)
         
         # 자동 로그인 버튼 클릭
-        login(login_page)
+        if 'bpm_lgn_lg00_001.do' in login_page.url:
+            print("로그인 페이지를 감지하여 자동 로그인을 시도합니다.")
+            login(login_page)
+        else:
+            print("이미 로그인된 상태이므로 자동 로그인을 건너뛁니다.")
         
         # 2단계: 수동 로그인 안내 및 대기
         print("2단계: 사용자 수동 로그인을 안내합니다...")
