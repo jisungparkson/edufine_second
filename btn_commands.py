@@ -56,8 +56,17 @@ class BrowserManager:
         if service_name in self.pages:
             page = self.pages[service_name]
             if not page.is_closed():
-                page.bring_to_front()
+                try:
+                    page.bring_to_front()
+                except Exception as e:
+                    print(f"{service_name} 페이지 활성화 중 오류: {e}")
+                    # 오류 발생 시 새 페이지 생성
+                    del self.pages[service_name]
+                    return self.get_or_create_page(service_name)
                 return page
+            else:
+                # 닫힌 페이지는 딕셔너리에서 제거
+                del self.pages[service_name]
         
         # 새 페이지 생성 (공유 컨텍스트를 통해)
         page = self.context.new_page()
@@ -242,8 +251,10 @@ def navigate_to_neis(app_instance):
         else:
             print("기존 브라우저를 재사용합니다...")
         
-        # 2단계: 나이스 페이지 확인/생성
-        page = browser_manager.get_or_create_page('나이스')
+        # 2단계: 나이스 페이지 확인/생성 (닫힌 페이지 처리 포함)
+        page = browser_manager.pages.get('나이스')
+        if page is None or page.is_closed():
+            page = browser_manager.get_or_create_page('나이스')
         
         # 3단계: 현재 URL 확인
         try:
@@ -253,7 +264,12 @@ def navigate_to_neis(app_instance):
             # 이미 나이스 페이지라면 활성화만 하고 종료
             if 'neis.go.kr' in current_url:
                 print("✓ 이미 나이스 페이지에 있습니다.")
-                page.bring_to_front()
+                if not page.is_closed():
+                    page.bring_to_front()
+                else:
+                    page = browser_manager.get_or_create_page('나이스')
+                    page.goto(urls['나이스'])
+                    page.wait_for_load_state("networkidle", timeout=30000)
                 messagebox.showinfo("나이스 접속", "나이스 페이지가 활성화되었습니다! 🎉")
                 return
             
@@ -345,8 +361,10 @@ def navigate_to_edufine(app_instance):
         else:
             print("기존 브라우저를 재사용합니다...")
         
-        # 2단계: 에듀파인 페이지 확인/생성
-        page = browser_manager.get_or_create_page('에듀파인')
+        # 2단계: 에듀파인 페이지 확인/생성 (닫힌 페이지 처리 포함)
+        page = browser_manager.pages.get('에듀파인')
+        if page is None or page.is_closed():
+            page = browser_manager.get_or_create_page('에듀파인')
         
         # 3단계: 현재 URL 확인
         try:
@@ -356,7 +374,12 @@ def navigate_to_edufine(app_instance):
             # 이미 에듀파인 페이지라면 활성화만 하고 종료
             if 'klef.jbe.go.kr' in current_url:
                 print("✓ 이미 K-에듀파인 페이지에 있습니다.")
-                page.bring_to_front()
+                if not page.is_closed():
+                    page.bring_to_front()
+                else:
+                    page = browser_manager.get_or_create_page('에듀파인')
+                    page.goto(urls['에듀파인'])
+                    page.wait_for_load_state("networkidle", timeout=30000)
                 messagebox.showinfo("K-에듀파인 접속", "K-에듀파인 페이지가 활성화되었습니다! 🎉")
                 return
             
