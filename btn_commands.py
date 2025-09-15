@@ -180,7 +180,7 @@ def _perform_universal_login(app_instance):
 def do_login_only():
     """
     단순 로그인 전용 함수: 기존 브라우저에서 로그인만 수행
-    업무포털 로그인 페이지로 이동하여 사용자 로그인 완료 후 메인 페이지로 이동
+    업무포털 로그인 페이지로 이동하여 자동 인증서 로그인 시도 → 실패 시 수동 로그인 안내
     """
     try:
         print("=== 단순 로그인 수행 ===")
@@ -202,18 +202,26 @@ def do_login_only():
         page.goto(urls['업무포털 로그인'])
         page.wait_for_load_state("networkidle", timeout=30000)
         
-        # 사용자 로그인 안내
-        messagebox.showinfo("로그인 필요", 
-                          "로그인이 필요합니다. 🔐\n\n"
-                          "브라우저에서 로그인을 완료해주세요.\n\n"
-                          "이 창에서 '확인'을 클릭하고 브라우저에서 로그인해주세요.")
-        
-        # 로그인 성공 대기
-        _wait_for_login_success(page)
-        browser_manager.is_logged_in = True
-        print("✓ 로그인이 완료되었습니다!")
-        
-        return page
+        # 자동 로그인 버튼 클릭 시도
+        try:
+            login(page)
+            # 자동 로그인 성공 여부 확인 (짧은 시간만 대기)
+            _wait_for_login_success(page, timeout=10000)
+            browser_manager.is_logged_in = True
+            print("✓ 자동 로그인이 완료되었습니다!")
+            return page
+        except Exception as auto_login_error:
+            print(f"자동 로그인 실패: {auto_login_error}")
+            
+            # 수동 로그인 안내
+            messagebox.showinfo("수동 로그인", 
+                              "수동 로그인")
+            
+            # 로그인 성공 대기 (충분한 시간)
+            _wait_for_login_success(page)
+            browser_manager.is_logged_in = True
+            print("✓ 수동 로그인이 완료되었습니다!")
+            return page
         
     except Exception as e:
         print(f"로그인 중 오류: {e}")
@@ -252,8 +260,18 @@ def navigate_to_neis(app_instance):
             # 로그인 페이지인지 확인
             if 'lg00_001.do' in current_url:
                 print("로그인 페이지에 있습니다. 로그인이 필요합니다.")
-                do_login_only()
-                # 로그인 후 업무포털 메인 페이지로 이동될 것임
+                # 자동 로그인 시도 → 실패 시 수동 로그인
+                try:
+                    login(page)
+                    _wait_for_login_success(page, timeout=10000)
+                    browser_manager.is_logged_in = True
+                    print("✓ 자동 로그인이 완료되었습니다!")
+                except Exception as auto_login_error:
+                    print(f"자동 로그인 실패: {auto_login_error}")
+                    messagebox.showinfo("수동 로그인", "수동 로그인")
+                    _wait_for_login_success(page)
+                    browser_manager.is_logged_in = True
+                    print("✓ 수동 로그인이 완료되었습니다!")
             
             # 업무포털 메인 페이지나 기타 페이지에서 나이스로 이동
             if 'eduptl.kr' in current_url or current_url == 'about:blank':
@@ -282,7 +300,22 @@ def navigate_to_neis(app_instance):
             # 로그인이 필요할 수 있음
             try:
                 print("로그인을 시도합니다...")
-                do_login_only()
+                # 업무포털 로그인 페이지로 이동
+                page.goto(urls['업무포털 로그인'])
+                page.wait_for_load_state("networkidle", timeout=30000)
+                
+                # 자동 로그인 시도 → 실패 시 수동 로그인
+                try:
+                    login(page)
+                    _wait_for_login_success(page, timeout=10000)
+                    browser_manager.is_logged_in = True
+                    print("✓ 자동 로그인이 완료되었습니다!")
+                except Exception as auto_login_error:
+                    print(f"자동 로그인 실패: {auto_login_error}")
+                    messagebox.showinfo("수동 로그인", "수동 로그인")
+                    _wait_for_login_success(page)
+                    browser_manager.is_logged_in = True
+                    print("✓ 수동 로그인이 완료되었습니다!")
                 
                 # 로그인 후 나이스 이동
                 page.goto(urls['나이스'])
@@ -330,8 +363,18 @@ def navigate_to_edufine(app_instance):
             # 로그인 페이지인지 확인
             if 'lg00_001.do' in current_url:
                 print("로그인 페이지에 있습니다. 로그인이 필요합니다.")
-                do_login_only()
-                # 로그인 후 업무포털 메인 페이지로 이동될 것임
+                # 자동 로그인 시도 → 실패 시 수동 로그인
+                try:
+                    login(page)
+                    _wait_for_login_success(page, timeout=10000)
+                    browser_manager.is_logged_in = True
+                    print("✓ 자동 로그인이 완료되었습니다!")
+                except Exception as auto_login_error:
+                    print(f"자동 로그인 실패: {auto_login_error}")
+                    messagebox.showinfo("수동 로그인", "수동 로그인")
+                    _wait_for_login_success(page)
+                    browser_manager.is_logged_in = True
+                    print("✓ 수동 로그인이 완료되었습니다!")
             
             # 업무포털 메인 페이지나 기타 페이지에서 에듀파인으로 이동
             if 'eduptl.kr' in current_url or current_url == 'about:blank':
@@ -360,7 +403,22 @@ def navigate_to_edufine(app_instance):
             # 로그인이 필요할 수 있음
             try:
                 print("로그인을 시도합니다...")
-                do_login_only()
+                # 업무포털 로그인 페이지로 이동
+                page.goto(urls['업무포털 로그인'])
+                page.wait_for_load_state("networkidle", timeout=30000)
+                
+                # 자동 로그인 시도 → 실패 시 수동 로그인
+                try:
+                    login(page)
+                    _wait_for_login_success(page, timeout=10000)
+                    browser_manager.is_logged_in = True
+                    print("✓ 자동 로그인이 완료되었습니다!")
+                except Exception as auto_login_error:
+                    print(f"자동 로그인 실패: {auto_login_error}")
+                    messagebox.showinfo("수동 로그인", "수동 로그인")
+                    _wait_for_login_success(page)
+                    browser_manager.is_logged_in = True
+                    print("✓ 수동 로그인이 완료되었습니다!")
                 
                 # 로그인 후 에듀파인 이동
                 page.goto(urls['에듀파인'])
@@ -376,7 +434,7 @@ def navigate_to_edufine(app_instance):
         _handle_error(e)
 
 
-def _wait_for_login_success(page: Page):
+def _wait_for_login_success(page: Page, timeout=180000):
     """
     로그인 성공을 대기하는 헬퍼 함수
     로그인 페이지에서 벗어나면 로그인 성공으로 판단
@@ -386,7 +444,7 @@ def _wait_for_login_success(page: Page):
         # 로그인 페이지에서 벗어나면 로그인 성공으로 판단
         page.wait_for_function(
             "() => !window.location.href.includes('bpm_lgn_lg00_001.do')", 
-            timeout=180000
+            timeout=timeout
         )
         print("✓ 로그인 성공이 감지되었습니다!")
         return True
